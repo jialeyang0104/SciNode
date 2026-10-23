@@ -1,0 +1,11 @@
+.query-result-preview{margin:18px 0;padding:15px;border:1px solid #ddd9eb;border-radius:12px;background:#faf9fe;color:#253248}
+.query-result-preview h3{font-size:16px;margin:0 0 13px}
+.query-preview-item+.query-preview-item{margin-top:18px}
+.query-preview-item>header{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-bottom:9px;font-size:12px}
+.query-preview-item>header>strong{font-size:13px}
+.query-preview-item>header>span:not(.ant-tag){color:#536277}
+.query-preview-item .ant-table-cell{font-size:12px;max-width:360px;white-space:pre-wrap;overflow-wrap:anywhere;vertical-align:top}
+.query-result-preview>p{margin:12px 0 0;color:#536277;font-size:12px;line-height:1.7}
+.query-null{font-style:italic;color:#667084}
+.node-artifact-download{display:flex;align-items:center;gap:9px;flex-wrap:wrap;width:100%;padding:8px 0;border-bottom:1px solid #edf0f4}
+.node-artifact-download>span{flex:1;min-width:130px;overflow-wrap:anywhere;color:#36465c;font-size:12px}

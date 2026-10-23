@@ -1,0 +1,96 @@
+server:
+  port: ${SERVER_PORT:8084}
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 52MB
+  application:
+    name: SciNode
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:backend/.env[.properties]
+  devtools:
+    restart:
+      enabled: true
+      additional-paths: src/main/java,src/main/resources
+    livereload:
+      enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+      password: ${REDIS_PASSWORD:}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:scinode}?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:}
+  jackson:
+    time-zone: GMT+8
+    date-format: yyyy-MM-dd HH:mm:ss
+  ai:
+    openai:
+      # 占位配置，实际使用时通过节点配置动态指定
+      api-key: ${OPENAI_API_KEY:sk-placeholder}
+      base-url: https://api.openai.com
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.scinode.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# SpringDoc OpenAPI 配置
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+  info:
+    title: SciNode API
+    description: 个人科研工作流 API 文档
+    version: 1.0.0
+
+# MinIO 配置
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  accessKey: ${MINIO_ACCESS_KEY:minioadmin}
+  secretKey: ${MINIO_SECRET_KEY:minioadmin}
+  bucketName: scinode
+  publicUrl: ${MINIO_PUBLIC_URL:http://localhost:9000}
+
+# SciNode 配置
+scinode:
+  auth:
+    # 本地开发未配置 JWT_SECRET 时会自动生成临时强密钥；生产环境请务必显式配置
+    jwt-secret: ${JWT_SECRET:}
+    access-token-expiration-minutes: 120
+    refresh-token-expiration-hours: 168
+  # 默认管理员账户（生产环境必须修改或禁用）
+  # 通过环境变量 APP_AUTH_DEFAULT_USERNAME 和 APP_AUTH_DEFAULT_PASSWORD 配置
+  # 留空则禁用默认账户，必须通过注册功能创建账户
+  default-username: ${APP_AUTH_DEFAULT_USERNAME:admin}
+  default-password: ${APP_AUTH_DEFAULT_PASSWORD:admin123}
+  skills:
+    path: skills
+
+  # Local research runners; set absolute paths in the deployment environment.
+  data-dir: ${SCINODE_DATA_DIR:scinode-data}
+  python: ${SCINODE_PYTHON:python3}
+  rscript: ${SCINODE_RSCRIPT:Rscript}
+  document-python: ${SCINODE_DOCUMENT_PYTHON:python3}

@@ -1,0 +1,28 @@
+import {useEffect,useState} from 'react';
+import {Alert,Button,Input,Modal,Space,Tag} from 'antd';
+import {LinkOutlined,ReloadOutlined} from '@ant-design/icons';
+import {research,errorText} from './api';
+import type {AssistantResource,AssistantResources,CodexLinkStatus} from './types';
+
+interface Props {open:boolean;projectId?:string;onChanged?:(resources?:AssistantResources)=>void}
+export default function CodexLinkPanel({open,projectId,onChanged}:Props){
+ const [status,setStatus]=useState<CodexLinkStatus>(),[resources,setResources]=useState<AssistantResources>(),[home,setHome]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[inspectError,setInspectError]=useState(''),[inspecting,setInspecting]=useState<string>(),[toolLists,setToolLists]=useState<Record<string,string[]>>({});
+ const [viewedSkill,setViewedSkill]=useState<AssistantResource>(),[skillContent,setSkillContent]=useState(''),[skillError,setSkillError]=useState(''),[skillLoading,setSkillLoading]=useState(false);
+ const refresh=async()=>{setBusy(true);setError('');try{const [next,catalog]=await Promise.all([research.codexStatus(),research.assistantResources(projectId)]);setStatus(next);setHome(next.codexHome||'');setResources(catalog);onChanged?.(catalog);}catch(reason){setError(errorText(reason));}finally{setBusy(false);}};
+ useEffect(()=>{if(open)void refresh();},[open]);
+ const link=async()=>{setBusy(true);setError('');try{const next=await research.linkCodex(home.trim()||undefined);setStatus(next);setHome(next.codexHome||'');const catalog=await research.assistantResources(projectId);setResources(catalog);onChanged?.(catalog);}catch(reason){setError(errorText(reason));}finally{setBusy(false);}};
+ const unlink=async()=>{setBusy(true);setError('');try{const next=await research.unlinkCodex();setStatus(next);const catalog=await research.assistantResources(projectId);setResources(catalog);onChanged?.(catalog);}catch(reason){setError(errorText(reason));}finally{setBusy(false);}};
+ const inspectable=(resource:AssistantResource)=>resource.enabled!==false&&!/disabled|unsupported|unavailable|invalid|停用|不支持|不可用|无效/i.test(resource.status||'')&&(!resource.transport||/^stdio$/i.test(resource.transport));
+ const inspect=async(resource:AssistantResource)=>{if(!inspectable(resource))return;setInspecting(resource.id);setInspectError('');try{const result=await research.inspectAssistantMcp(resource.id,projectId);setToolLists(current=>({...current,[resource.id]:result.tools.map(tool=>tool.name)}));}catch(reason){setInspectError(errorText(reason));}finally{setInspecting(undefined);}};
+ const viewSkill=async(resource:AssistantResource)=>{setViewedSkill(resource);setSkillContent('');setSkillError('');setSkillLoading(true);try{const result=await research.assistantSkillContent(resource.id,projectId);setSkillContent(result.content);}catch(reason){setSkillError(errorText(reason));}finally{setSkillLoading(false);}};
+ return <><div className="codex-link-panel"><p>连接当前用户个人 Codex Skills 与 MCP 来源。SciNode 使用软链接读取源目录，原文件保留在 Codex 目录中；全局与项目均可见。</p>
+  {error&&<Alert type="error" showIcon message="Codex 来源更新失败" description={error}/>}
+  <label className="modal-field">Codex 主目录<Input value={home} onChange={event=>setHome(event.target.value)} placeholder="默认 ~/.codex" disabled={busy}/></label>
+  {status&&<div className="codex-link-status"><Tag color={status.linked?'success':'default'}>{status.linked?'已链接':'未链接'}</Tag><span>{status.codexHome||'默认 ~/.codex'}</span><span>Skills {status.skillsCount} 项</span><span>MCP {status.mcpCount} 项</span></div>}
+  {status?.warnings?.map((warning,index)=><Alert key={index} className="codex-warning" type="warning" showIcon message={warning}/>)}
+  <Space wrap><Button icon={<ReloadOutlined/>} loading={busy} onClick={()=>void refresh()}>刷新状态</Button><Button type="primary" icon={<LinkOutlined/>} loading={busy} onClick={()=>void link()}>{status?.linked?'更新链接':'链接 Codex 来源'}</Button>{status?.linked&&<Button danger loading={busy} onClick={()=>void unlink()}>解除链接</Button>}</Space>
+  <div className="codex-resource-list"><strong>Skills 与指南 · {resources?.skills.length||0}</strong><p>Codex Skills 与内置科研 Skills 共用助手菜单，工作流设置中也可单独启用。选择“查看内容”可核对实际读取文本。</p>{resources?.skills.map(resource=><div key={resource.id} className="codex-resource-entry"><div><strong>{resource.name}</strong><small>{resource.source||'builtin'} · {resource.description||'科研指南'}</small></div><Button size="small" onClick={()=>void viewSkill(resource)}>查看内容</Button></div>)}</div>
+  <div className="codex-resource-list"><strong>MCP 来源与服务</strong>{!resources?.mcp.length?<p>尚无可见 MCP 来源。</p>:resources.mcp.map(resource=><div key={resource.id} className="codex-resource-entry"><div><strong>{resource.name}</strong><small>{resource.source||'Codex'} · {resource.transport||'未知传输'} · {resource.status|| (resource.enabled?'已启用':'已停用')}</small>{toolLists[resource.id]&&<small>工具：{toolLists[resource.id].join('、')||'服务未提供工具'}</small>}</div><Button size="small" loading={inspecting===resource.id} disabled={!inspectable(resource)} title={inspectable(resource)?undefined:`当前状态 ${resource.status||resource.transport||'不可用'}，工具读取尚未支持`} onClick={()=>void inspect(resource)}>读取工具列表</Button></div>)}</div>
+  {inspectError&&<Alert type="error" showIcon message="读取 Codex MCP 工具列表失败" description={inspectError}/>}
+ </div><Modal title={`Skill 内容 · ${viewedSkill?.name||''}`} open={!!viewedSkill} width={820} onCancel={()=>setViewedSkill(undefined)} footer={null}>{skillError&&<Alert type="error" showIcon message="读取 Skill 内容失败" description={skillError}/>} {skillLoading?<p>正在读取…</p>:<pre style={{maxHeight:'65vh',overflow:'auto',whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{skillContent}</pre>}</Modal></>;
+}

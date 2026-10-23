@@ -1,0 +1,77 @@
+# 系统、编辑器和本机 AI 工具资料
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.qoder/
+.codex/
+*.iml
+*.iws
+*.ipr
+
+# 私有环境配置；只保留可填写的示例
+.env
+.env.*
+!.env.example
+!.env.*.example
+.envrc
+.pgpass
+.pg_service.conf
+.netrc
+.npmrc
+secrets.json
+credentials.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+id_rsa
+id_ed25519
+
+# 编译、依赖和缓存
+node_modules/
+dist/
+dist-ssr/
+.vite/
+target/
+*.class
+*.jar
+*.war
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 日志、临时文件和数据库导出
+*.log
+logs/
+*.tmp
+*.temp
+*.pid
+*.sock
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.dump
+*.backup
+*.sql.gz
+
+# 个人科研资料、对话、运行记录和验收产物
+/backend/scinode-data/
+/scinode-data/
+/artifacts/
+/scripts/verify_scinode.py
+/scripts/verify_scinode_management.py
+
+# 部署目录仅记录这两份源码；凭据、服务数据、备份、下载包和日志留在本机
+/deploy/local/*
+!/deploy/local/bootstrap.py
+!/deploy/local/manage.py

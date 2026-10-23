@@ -1,0 +1,422 @@
+.approval-review{
+display:flex;
+flex-direction:column;
+gap:18px;
+color:#24374a}
+.approval-review-heading{
+display:flex;
+align-items:flex-start;
+justify-content:space-between;
+gap:16px}
+.approval-review-heading h3{
+font-size:19px;
+line-height:1.35;
+margin:5px 0 3px;
+color:#24374a}
+.approval-review-heading p{
+font-size:12px;
+color:#78909d;
+margin:0}
+.approval-review-eyebrow{
+font-size:9px;
+letter-spacing:1.6px;
+color:#277f85;
+font-weight:700}
+.approval-review-summary{
+border-color:#e3eaf0;
+background:#fbfcfd}
+.approval-review-summary p{
+white-space:pre-wrap;
+overflow-wrap:anywhere;
+line-height:1.7;
+margin:7px 0 0;
+color:#496174}
+.approval-review-stats{
+display:grid;
+grid-template-columns:repeat(4,minmax(0,1fr));
+gap:8px;
+padding:12px;
+background:#f6f9fa;
+border:1px solid #e7edef;
+border-radius:9px}
+.approval-review-stats .ant-statistic{
+min-width:0}
+.approval-review-stats .ant-statistic-title{
+font-size:10px;
+color:#8195a1;
+margin-bottom:3px}
+.approval-review-stats .ant-statistic-content{
+font-size:19px;
+color:#2e6971;
+line-height:1.2}
+.approval-review-diagnostics{
+width:100%}
+.approval-review-diagnostics .ant-alert{
+width:100%}
+.approval-review-diagnostics ul{
+padding-left:19px;
+margin:5px 0 0;
+overflow-wrap:anywhere}
+.approval-review-search{
+width:100%}
+.approval-review-section{
+display:flex;
+flex-direction:column;
+gap:10px}
+.approval-section-heading{
+display:flex;
+align-items:center;
+gap:9px}
+.approval-section-heading h4{
+font-size:14px;
+color:#2b4659;
+margin:0}
+.approval-section-heading .ant-tag{
+margin-inline-start:auto}
+.approval-patch-group{
+display:flex;
+flex-direction:column;
+gap:8px}
+.approval-patch-source{
+font-size:10px;
+color:#8297a2;
+overflow-wrap:anywhere}
+.approval-patch-list{
+display:flex;
+flex-direction:column;
+gap:9px}
+.approval-patch{
+border:1px solid #e1e9ed;
+border-radius:9px;
+background:#fff;
+overflow:hidden}
+.approval-patch>summary{
+display:flex;
+align-items:center;
+gap:10px;
+padding:11px 13px;
+cursor:pointer;
+list-style-position:inside;
+color:#31536a}
+.approval-patch>summary strong{
+font-size:12px;
+font-weight:650}
+.approval-patch>summary span{
+font-size:10px;
+color:#8195a1}
+.approval-patch[open]>summary{
+border-bottom:1px solid #edf1f4;
+background:#f9fbfc}
+.approval-diff-grid{
+display:grid;
+grid-template-columns:repeat(2,minmax(0,1fr));
+gap:1px;
+background:#e9eef1}
+.approval-diff-grid section{
+min-width:0;
+background:#fff;
+padding:12px}
+.approval-diff-grid h5{
+font-size:10px;
+letter-spacing:.3px;
+color:#708894;
+margin:0 0 7px}
+.approval-diff-grid pre,.approval-extra-fields pre,.approval-long-text pre,.approval-depth-limit pre,.approval-review-raw pre{
+white-space:pre-wrap;
+overflow-wrap:anywhere;
+max-height:400px;
+overflow:auto;
+margin:0;
+padding:10px 11px;
+border-radius:6px;
+background:#f5f8f9;
+color:#344c5d;
+font:11px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace}
+.approval-diff-grid section:first-child pre{
+background:#fff7f4;
+border:1px solid #f4e2dd}
+.approval-diff-grid section:last-child pre{
+background:#f3faf6;
+border:1px solid #dceee4}
+.approval-extra-fields{
+margin:10px 12px 12px}
+.approval-extra-fields summary,.approval-long-text summary,.approval-depth-limit summary{
+font-size:10px;
+color:#3d7a80;
+cursor:pointer;
+padding:5px 0}
+.approval-entry-grid{
+display:grid;
+grid-template-columns:1fr;
+gap:9px}
+.approval-entry-card{
+border-color:#e7edef;
+background:#fff}
+.approval-entry-card>.ant-card-head{
+min-height:37px;
+padding:0 11px;
+border-bottom-color:#eff2f4}
+.approval-entry-card .ant-card-head-title{
+font-size:11px;
+white-space:normal;
+overflow-wrap:anywhere;
+padding:9px 0}
+.approval-entry-card .ant-card-head-title .ant-typography{
+font-size:9px}
+.approval-entry-card>.ant-card-body{
+padding:11px}
+.approval-count-tag{
+margin-inline-start:8px;
+font-size:9px}
+.approval-value-list{
+padding-left:22px;
+margin:0;
+display:flex;
+flex-direction:column;
+gap:9px}
+.approval-value-list>li{
+padding-left:3px;
+color:#69818f}
+.approval-field-list{
+display:flex;
+flex-direction:column;
+gap:9px;
+margin:0}
+.approval-field{
+display:grid;
+grid-template-columns:minmax(72px,.3fr) minmax(0,1fr);
+gap:9px;
+padding-bottom:8px;
+border-bottom:1px solid #f0f3f5}
+.approval-field:last-child{
+padding-bottom:0;
+border-bottom:0}
+.approval-field dt{
+font-size:10px;
+font-weight:600;
+color:#667f8e;
+overflow-wrap:anywhere}
+.approval-field dd{
+min-width:0;
+margin:0;
+font-size:11px;
+line-height:1.65;
+color:#354d5d;
+overflow-wrap:anywhere}
+.approval-scalar{
+white-space:pre-wrap;
+overflow-wrap:anywhere}
+.approval-structured-value{
+padding:10px 12px}
+.approval-depth-limit{
+margin:4px 0}
+.approval-decision-list{
+list-style:none;
+padding:0;
+margin:0;
+display:flex;
+flex-direction:column;
+gap:9px}
+.approval-decision-list>li{
+min-width:0}
+.approval-decision-card{
+border-color:#e2e9ed}
+.approval-decision-card .ant-card-body{
+padding:12px}
+.approval-decision-head{
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:10px}
+.approval-decision-head>span{
+font-size:10px;
+color:#8296a1;
+text-align:right}
+.approval-decision-meta{
+display:flex;
+flex-wrap:wrap;
+gap:8px;
+margin-top:7px;
+font-size:10px;
+color:#718895}
+.approval-decision-note{
+padding:9px 10px;
+margin-top:9px;
+border-radius:6px;
+background:#f7f9fa;
+font-size:11px;
+line-height:1.7;
+color:#40596a;
+overflow-wrap:anywhere}
+.approval-decision-card details{
+margin-top:8px}
+.approval-decision-card details summary{
+font-size:10px;
+color:#3f7d83;
+cursor:pointer}
+.approval-decision-card pre{
+white-space:pre-wrap;
+overflow-wrap:anywhere}
+.approval-review-actions{
+display:flex;
+flex-direction:column;
+gap:10px;
+padding:14px;
+border:1px solid #e3e9ed;
+border-radius:9px;
+background:#fbfcfd}
+.approval-review-actions label{
+font-size:12px;
+font-weight:600;
+color:#435c6d}
+.approval-review-actions label span{
+color:#c14343}
+.approval-review-actions .ant-alert{
+margin-top:2px}
+.approval-review-raw{
+border-top:1px solid #e8edef;
+padding-top:12px}
+.approval-review-raw>summary{
+font-size:11px;
+color:#477f84;
+cursor:pointer}
+.approval-review-raw pre{
+margin-top:9px;
+max-height:480px}
+.approval-review .ant-collapse{
+border-color:#e5ebee;
+background:#fff}
+.approval-review .ant-collapse-header{
+font-size:11px;
+font-weight:600;
+color:#446274!important}
+.approval-review .ant-collapse-content-box{
+padding:0 12px 12px!important}
+.approval-review .ant-empty{
+margin:12px 0}
+.approval-review .ant-empty-description{
+font-size:11px;
+color:#8497a1}
+@media(max-width:720px){
+.approval-review-stats{
+grid-template-columns:repeat(2,minmax(0,1fr))}
+.approval-diff-grid{
+grid-template-columns:1fr}
+.approval-field{
+grid-template-columns:1fr;
+gap:3px}
+.approval-review-heading{
+align-items:center}
+.approval-review-heading h3{
+font-size:17px}
+}
+
+.approval-markdown{
+font-size:11px;
+line-height:1.75;
+color:#344f61;
+overflow-wrap:anywhere}
+.approval-markdown p{
+margin:0 0 9px;
+white-space:pre-wrap}
+.approval-markdown p:last-child{
+margin-bottom:0}
+.approval-markdown h1,.approval-markdown h2,.approval-markdown h3,.approval-markdown h4{
+font-size:12px;
+margin:12px 0 7px;
+color:#31536a}
+.approval-markdown ul,.approval-markdown ol{
+padding-left:20px;
+margin:5px 0 10px}
+.approval-markdown table{
+width:100%;
+border-collapse:collapse;
+font-size:10px;
+display:block;
+overflow:auto}
+.approval-markdown th,.approval-markdown td{
+border:1px solid #dfe8ec;
+padding:6px 8px;
+text-align:left;
+vertical-align:top}
+.approval-markdown th{
+background:#f2f7f8;
+color:#435f70}
+.approval-review-actions{
+position:sticky;
+bottom:0;
+z-index:4;
+background:#ffffffed;
+backdrop-filter:blur(8px);
+box-shadow:0 -8px 20px #2543540b}
+
+.approval-review{
+font-size:14px}
+.approval-review-eyebrow{
+font-size:12px}
+.approval-review-summary p{
+font-size:14px}
+.approval-review-stats .ant-statistic-title{
+font-size:12px}
+.approval-review-section>.approval-section-heading h4{
+font-size:14px}
+.approval-patch-source,.approval-patch>summary span,.approval-diff-grid h5,.approval-extra-fields summary,.approval-long-text summary,.approval-depth-limit summary,.approval-entry-card .ant-card-head-title,.approval-entry-card .ant-card-head-title .ant-typography,.approval-field dt,.approval-decision-head>span,.approval-decision-meta,.approval-decision-card details summary,.approval-review .ant-collapse-header,.approval-review .ant-empty-description{
+font-size:12px}
+.approval-patch>summary strong{
+font-size:14px}
+.approval-diff-grid pre{
+font-size:14px;
+line-height:1.75}
+.approval-field dd,.approval-scalar,.approval-value-list>li,.approval-decision-note,.approval-markdown{
+font-size:14px;
+line-height:1.75}
+.approval-review-actions label{
+font-size:12px}
+.approval-review-raw>summary{
+font-size:12px}
+.approval-entry-card>.ant-card-body{
+font-size:14px}
+.approval-decision-card .ant-card-body{
+font-size:14px}
+.approval-decision-head .ant-tag,.approval-section-heading .ant-tag{
+font-size:12px}
+.approval-section-heading .ant-btn{
+font-size:12px}
+
+
+.approval-review,.approval-review-summary p,.approval-field dd,.approval-scalar,.approval-value-list>li,.approval-decision-note,.approval-markdown,.approval-diff-grid pre{
+font-size:14px;
+line-height:1.75}
+.approval-review .ant-statistic-title,.approval-review .ant-collapse-header,.approval-review .ant-empty-description,.approval-review .approval-patch-source,.approval-review .approval-patch>summary span,.approval-review .approval-diff-grid h5,.approval-review .approval-extra-fields summary,.approval-review .approval-long-text summary,.approval-review .approval-depth-limit summary,.approval-review .approval-entry-card .ant-card-head-title,.approval-review .approval-entry-card .ant-card-head-title .ant-typography,.approval-review .approval-field dt,.approval-review .approval-decision-head>span,.approval-review .approval-decision-meta,.approval-review .approval-decision-card details summary,.approval-review .approval-review-raw>summary{
+font-size:12px}
+.approval-review .approval-patch>summary strong{
+font-size:14px}
+.approval-review .approval-patch>summary,.approval-review .approval-section-heading h4{
+font-size:14px}
+.approval-review .approval-section-heading .ant-tag,.approval-review .approval-section-heading .ant-btn{
+font-size:12px}
+.approval-review .approval-review-actions{
+position:sticky;
+bottom:0;
+z-index:4;
+background:#ffffffed;
+backdrop-filter:blur(8px);
+box-shadow:0 -8px 20px #2543540b}
+
+.approval-review .approval-long-text pre,.approval-review .approval-depth-limit pre,.approval-review .approval-review-raw pre,.approval-review .approval-extra-fields pre,.approval-review .approval-decision-card pre{
+font-size:14px;
+line-height:1.75}
+.approval-review .approval-markdown table{
+font-size:12px}
+.approval-review .approval-entry-card .ant-card-body,.approval-review .approval-decision-card .ant-card-body,.approval-review .approval-scalar,.approval-review .approval-field dd{
+font-size:14px;
+line-height:1.75}
+.approval-review .approval-field dt,.approval-review .approval-patch-source,.approval-review .approval-patch>summary span,.approval-review .approval-decision-meta,.approval-review .approval-review-raw>summary,.approval-review .approval-entry-card .ant-card-head-title .ant-typography,.approval-review .approval-extra-fields summary,.approval-review .approval-depth-limit summary,.approval-review .approval-long-text summary{
+font-size:12px}
+
+
+.approval-panel-scroll{max-height:46vh;min-height:240px;overflow:auto;padding:4px 4px 12px;scrollbar-gutter:stable}.approval-content-tabs .ant-tabs-nav{margin-bottom:8px}.approval-review-actions{flex-shrink:0}.approval-review-actions textarea{font-size:14px}.approval-review-raw{margin-bottom:16px}@media(max-width:720px){.approval-panel-scroll{max-height:42vh;min-height:200px}}
+
+.approval-review{height:calc(100dvh - 160px);min-height:500px;gap:10px}.approval-review-heading h3{font-size:18px;margin:0 0 3px}.approval-review-eyebrow{display:none}.approval-review-summary .ant-card-body{padding:10px 12px}.approval-review-summary p{margin-top:4px}.approval-review-stats{display:flex;justify-content:space-between;gap:12px;padding:7px 12px}.approval-review-stats .ant-statistic{display:flex;gap:8px;align-items:center}.approval-review-stats .ant-statistic-title{margin:0;font-size:12px}.approval-review-stats .ant-statistic-content{font-size:15px}.approval-content-tabs{flex:1;min-height:0}.approval-content-tabs .ant-tabs-content-holder,.approval-content-tabs .ant-tabs-content,.approval-content-tabs .ant-tabs-tabpane{height:100%;min-height:0}.approval-panel-scroll{height:100%;max-height:none;min-height:0;overflow:auto}.approval-review-actions{position:static;padding:10px 12px;gap:6px;box-shadow:none;background:#f9fbfd}.approval-review-raw{margin:0;padding-top:6px}.approval-review-heading p{font-size:12px}@media(max-width:720px){.approval-review{height:calc(100dvh - 170px);min-height:470px}.approval-review-stats{flex-wrap:wrap}.approval-panel-scroll{min-height:0;max-height:none}.approval-review-heading{gap:8px}.approval-review-heading h3{font-size:16px}}
+
+.approval-review-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px}.approval-review-actions>label{grid-column:1/-1}.approval-review-actions>textarea{grid-column:1}.approval-review-actions>.ant-space{grid-column:2;align-self:end}.approval-review-actions>.ant-alert{grid-column:1/-1}.approval-review-heading{gap:8px}.approval-review-summary strong{display:none}.approval-review-summary p{margin:0}.approval-review-stats{padding:5px 10px}.approval-section-heading{padding-bottom:3px}@media(max-width:600px){.approval-review-actions{display:flex}.approval-review-actions>.ant-space{align-self:start}}

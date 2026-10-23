@@ -1,0 +1,4 @@
+# Fresh-environment dependencies for postgres_workflow.py.
+# The local SciNode runtime already provides psycopg2 2.9.11 through Conda.
+psycopg2-binary==2.9.11
+pglast==7.21
