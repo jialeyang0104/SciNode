@@ -10,7 +10,7 @@
   </parent>
   <groupId>com.scinode</groupId>
   <artifactId>scinode-backend</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>1.0.0</version>
   <name>SciNode</name>
   <description>SciNode Personal Research Workflow Platform</description>
   <url></url>

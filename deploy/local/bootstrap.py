@@ -119,7 +119,7 @@ daemonize no
         'mysql': (LOCAL, [str(MYSQL / 'mysqld'), f'--defaults-file={LOCAL / "mysql.cnf"}']),
         'redis': (LOCAL, ['/opt/homebrew/opt/redis/bin/redis-server', str(LOCAL / 'redis.conf')]),
         'backend': (ROOT / 'backend', ['/opt/homebrew/opt/openjdk@21/bin/java', '-Xms128m', '-Xmx768m',
-                                     '-jar', str(ROOT / 'backend/target/scinode-backend-0.0.1-SNAPSHOT.jar')]),
+                                     '-jar', str(ROOT / 'backend/target/scinode-backend-1.0.0.jar')]),
         'web': (ROOT / 'frontend', ['/opt/homebrew/bin/node', '--max-http-header-size=262144',
                                  str(ROOT / 'frontend/node_modules/vite/bin/vite.js'), 'preview',
                                  '--host', '127.0.0.1', '--port', '5173', '--strictPort']),

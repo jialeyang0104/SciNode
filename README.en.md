@@ -2,7 +2,7 @@
 
 [简体中文](README.md) | **English**
 
-**A visual AI workspace for personal research.**
+**A visual AI workspace for personal research — version 1.0.0.**
 
 Turn a research request into an editable workflow, connect models with local tools, review decisions, and keep the inputs, configuration, and outputs of each run together.
 
