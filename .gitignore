@@ -68,6 +68,7 @@ logs/
 /backend/scinode-data/
 /scinode-data/
 /artifacts/
+/软件著作权申请资料/
 /scripts/verify_scinode.py
 /scripts/verify_scinode_management.py
 

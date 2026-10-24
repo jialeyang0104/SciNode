@@ -7,164 +7,52 @@ import org.springframework.util.StringUtils;
 
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 
-/**
- * Resolves Agent Plan capable runtime configuration from global config or node-level fields.
- */
+/** 为科研节点组合连接信息与能力模型，保留已有配置字段和选择规则。 */
 @Service
 public class AgentPlanConfigResolver {
-
     public static final String DEFAULT_EMBEDDING_MODEL = "doubao-embedding-vision";
+    private static final String DEFAULT_PROVIDER = "volcengine_agent_plan";
 
-    private final LLMGlobalConfigService llmGlobalConfigService;
+    private final LLMGlobalConfigService configs;
 
-    public AgentPlanConfigResolver(LLMGlobalConfigService llmGlobalConfigService) {
-        this.llmGlobalConfigService = llmGlobalConfigService;
+    public AgentPlanConfigResolver(LLMGlobalConfigService configs) {
+        this.configs = configs;
     }
 
     public ResolvedAgentPlanConfig resolve(WorkflowNode node, String capability) {
-        Map<String, Object> data = node.getData();
-        Long nodeConfigId = parseLong(data.get("configId"));
-        LLMGlobalConfig nodeGlobalConfig = nodeConfigId != null ? llmGlobalConfigService.getById(nodeConfigId) : null;
-        Long explicitAgentPlanConfigId = parseLong(data.get("agentPlanConfigId"));
-        LLMGlobalConfig globalConfig = resolveAgentPlanConfig(explicitAgentPlanConfigId, nodeGlobalConfig);
-        Long configId = globalConfig != null ? globalConfig.getId() : null;
-
-        String nodeModel = trim(data.get("model"));
-        String apiUrl = firstText(globalConfig != null ? globalConfig.getApiUrl() : null, trim(data.get("apiUrl")));
-        String apiKey = firstText(globalConfig != null ? globalConfig.getApiKey() : null, trim(data.get("apiKey")));
-        String provider = canonicalizeProvider(firstText(
-                globalConfig != null ? globalConfig.getProvider() : null,
-                trim(data.get("provider")),
-                "volcengine_agent_plan"
-        ));
-
-        String languageModel = firstText(nodeModel, globalConfig != null ? globalConfig.getModel() : null);
-        String embeddingModel = firstText(
-                "embedding".equals(capability) ? nodeModel : null,
-                globalConfig != null ? globalConfig.getEmbeddingModel() : null,
-                DEFAULT_EMBEDDING_MODEL
-        );
-        String imageModel = firstText(
-                "image".equals(capability) ? nodeModel : null,
-                globalConfig != null ? globalConfig.getImageModel() : null,
-                languageModel
-        );
-        String videoModel = firstText(
-                "video".equals(capability) ? nodeModel : null,
-                globalConfig != null ? globalConfig.getVideoModel() : null,
-                languageModel
-        );
-
-        String effectiveModel = switch (capability) {
-            case "embedding", "memory", "knowledge" -> embeddingModel;
-            case "image" -> imageModel;
-            case "video" -> videoModel;
-            default -> languageModel;
-        };
-
-        boolean memoryEnabled = globalConfig != null && globalConfig.getMemoryEnabled() != null
-                && globalConfig.getMemoryEnabled() == 1;
-
-        return new ResolvedAgentPlanConfig(
-                configId,
-                provider,
-                apiUrl,
-                apiKey,
-                effectiveModel,
-                embeddingModel,
-                imageModel,
-                videoModel,
-                memoryEnabled
-        );
+        RuntimeSource source = new RuntimeSource(selectNodeConfig(node.getData()), node.getData());
+        CapabilityModels models = modelsFor(source, capability);
+        return source.resolve(models.active(capability), models.embedding(), models.image(), models.video());
     }
 
     public ResolvedAgentPlanConfig resolveImageConfig(WorkflowNode node) {
-        Map<String, Object> data = node.getData();
-        Long nodeConfigId = parseLong(data.get("configId"));
-        LLMGlobalConfig globalConfig = nodeConfigId != null ? llmGlobalConfigService.getById(nodeConfigId) : null;
-
-        String configuredProvider = canonicalizeProvider(trim(data.get("provider")));
-        if (globalConfig == null) {
-            globalConfig = resolveDefaultImageConfig(configuredProvider);
+        Map<String, Object> fields = node.getData();
+        LLMGlobalConfig selected = findConfig(fields.get("configId"));
+        if (selected == null) {
+            selected = imageDefault(providerKey(nodeText(fields, "provider")));
         }
 
-        String nodeModel = trim(data.get("model"));
-        String apiUrl = firstText(globalConfig != null ? globalConfig.getApiUrl() : null, trim(data.get("apiUrl")));
-        String apiKey = firstText(globalConfig != null ? globalConfig.getApiKey() : null, trim(data.get("apiKey")));
-        String provider = canonicalizeProvider(firstText(
-                globalConfig != null ? globalConfig.getProvider() : null,
-                configuredProvider,
-                "volcengine_agent_plan"
-        ));
-        String languageModel = firstText(nodeModel, globalConfig != null ? globalConfig.getModel() : null);
-        String imageModel = firstText(
-                nodeModel,
-                globalConfig != null ? globalConfig.getImageModel() : null,
-                languageModel
-        );
-
-        return new ResolvedAgentPlanConfig(
-                globalConfig != null ? globalConfig.getId() : null,
-                provider,
-                apiUrl,
-                apiKey,
-                imageModel,
-                globalConfig != null ? globalConfig.getEmbeddingModel() : null,
-                imageModel,
-                globalConfig != null ? globalConfig.getVideoModel() : null,
-                globalConfig != null && globalConfig.getMemoryEnabled() != null && globalConfig.getMemoryEnabled() == 1
-        );
-    }
-
-    private LLMGlobalConfig resolveDefaultImageConfig(String configuredProvider) {
-        if (StringUtils.hasText(configuredProvider)) {
-            LLMGlobalConfig providerDefault = llmGlobalConfigService.getDefaultConfig(configuredProvider);
-            if (providerDefault != null) {
-                return providerDefault;
-            }
-        }
-
-        LLMGlobalConfig defaultAgentPlan = llmGlobalConfigService.getDefaultConfig("volcengine_agent_plan");
-        if (defaultAgentPlan != null) {
-            return defaultAgentPlan;
-        }
-        return llmGlobalConfigService.getDefaultConfig("step");
-    }
-
-    private LLMGlobalConfig resolveAgentPlanConfig(Long explicitAgentPlanConfigId, LLMGlobalConfig nodeGlobalConfig) {
-        if (explicitAgentPlanConfigId != null) {
-            LLMGlobalConfig explicit = llmGlobalConfigService.getById(explicitAgentPlanConfigId);
-            if (explicit != null) {
-                return explicit;
-            }
-        }
-
-        if (nodeGlobalConfig != null) {
-            return nodeGlobalConfig;
-        }
-
-        return llmGlobalConfigService.getDefaultConfig("volcengine_agent_plan");
+        RuntimeSource source = new RuntimeSource(selected, fields);
+        String language = firstText(source.node("model"), source.saved(LLMGlobalConfig::getModel));
+        String image = firstText(source.node("model"), source.saved(LLMGlobalConfig::getImageModel), language);
+        // 图片入口的附属模型沿用配置原值，不套用通用入口的向量默认值。
+        return source.resolve(image, source.saved(LLMGlobalConfig::getEmbeddingModel),
+                image, source.saved(LLMGlobalConfig::getVideoModel));
     }
 
     public ResolvedAgentPlanConfig resolveKnowledgeConfig(Long configId, String modelOverride) {
-        LLMGlobalConfig globalConfig = configId != null ? llmGlobalConfigService.getById(configId) : null;
-        String embeddingModel = firstText(
-                modelOverride,
-                globalConfig != null ? globalConfig.getEmbeddingModel() : null,
-                DEFAULT_EMBEDDING_MODEL
-        );
-        return new ResolvedAgentPlanConfig(
-                configId,
-                canonicalizeProvider(firstText(globalConfig != null ? globalConfig.getProvider() : null, "volcengine_agent_plan")),
-                globalConfig != null ? globalConfig.getApiUrl() : null,
-                globalConfig != null ? globalConfig.getApiKey() : null,
-                embeddingModel,
-                embeddingModel,
-                globalConfig != null ? globalConfig.getImageModel() : null,
-                globalConfig != null ? globalConfig.getVideoModel() : null,
-                globalConfig != null && globalConfig.getMemoryEnabled() != null && globalConfig.getMemoryEnabled() == 1
-        );
+        LLMGlobalConfig selected = configId == null ? null : configs.getById(configId);
+        RuntimeSource source = new RuntimeSource(selected, Map.of());
+        String embedding = firstText(modelOverride, source.saved(LLMGlobalConfig::getEmbeddingModel),
+                DEFAULT_EMBEDDING_MODEL);
+        // 知识库保留请求中的配置 ID 和已保存的原始连接字段，供索引与检索共用。
+        return new ResolvedAgentPlanConfig(configId,
+                providerKey(firstText(source.saved(LLMGlobalConfig::getProvider), DEFAULT_PROVIDER)),
+                source.saved(LLMGlobalConfig::getApiUrl), source.saved(LLMGlobalConfig::getApiKey),
+                embedding, embedding, source.saved(LLMGlobalConfig::getImageModel),
+                source.saved(LLMGlobalConfig::getVideoModel), source.memoryEnabled());
     }
 
     public void validateApiConfig(ResolvedAgentPlanConfig config, String nodeName) {
@@ -174,39 +62,97 @@ public class AgentPlanConfigResolver {
         }
     }
 
-    private Long parseLong(Object value) {
-        if (value instanceof Number number) {
-            return number.longValue();
+    private LLMGlobalConfig selectNodeConfig(Map<String, Object> fields) {
+        LLMGlobalConfig selected = findConfig(fields.get("configId"));
+        LLMGlobalConfig explicit = findConfig(fields.get("agentPlanConfigId"));
+        if (explicit != null) return explicit;
+        if (selected != null) return selected;
+        return configs.getDefaultConfig(DEFAULT_PROVIDER);
+    }
+
+    private LLMGlobalConfig findConfig(Object value) {
+        Long id = configId(value);
+        return id == null ? null : configs.getById(id);
+    }
+
+    private LLMGlobalConfig imageDefault(String provider) {
+        if (StringUtils.hasText(provider)) {
+            LLMGlobalConfig selected = configs.getDefaultConfig(provider);
+            if (selected != null) return selected;
         }
-        if (value instanceof String text && StringUtils.hasText(text)) {
-            return Long.parseLong(text);
+        LLMGlobalConfig selected = configs.getDefaultConfig(DEFAULT_PROVIDER);
+        return selected != null ? selected : configs.getDefaultConfig("step");
+    }
+
+    private CapabilityModels modelsFor(RuntimeSource source, String capability) {
+        String override = source.node("model");
+        String language = firstText(override, source.saved(LLMGlobalConfig::getModel));
+        String embedding = firstText("embedding".equals(capability) ? override : null,
+                source.saved(LLMGlobalConfig::getEmbeddingModel), DEFAULT_EMBEDDING_MODEL);
+        String image = firstText("image".equals(capability) ? override : null,
+                source.saved(LLMGlobalConfig::getImageModel), language);
+        String video = firstText("video".equals(capability) ? override : null,
+                source.saved(LLMGlobalConfig::getVideoModel), language);
+        return new CapabilityModels(language, embedding, image, video);
+    }
+
+    private record CapabilityModels(String language, String embedding, String image, String video) {
+        String active(String capability) {
+            return switch (capability) {
+                case "embedding", "memory", "knowledge" -> embedding;
+                case "image" -> image;
+                case "video" -> video;
+                default -> language;
+            };
         }
+    }
+
+    private record RuntimeSource(LLMGlobalConfig config, Map<String, Object> fields) {
+        String saved(Function<LLMGlobalConfig, String> field) {
+            return config == null ? null : field.apply(config);
+        }
+
+        String node(String key) {
+            return nodeText(fields, key);
+        }
+
+        boolean memoryEnabled() {
+            return config != null && Integer.valueOf(1).equals(config.getMemoryEnabled());
+        }
+
+        ResolvedAgentPlanConfig resolve(String model, String embedding, String image, String video) {
+            // 连接优先使用已保存配置，缺失字段再取节点值；模型覆盖单独处理。
+            return new ResolvedAgentPlanConfig(config == null ? null : config.getId(),
+                    providerKey(firstText(saved(LLMGlobalConfig::getProvider), node("provider"), DEFAULT_PROVIDER)),
+                    firstText(saved(LLMGlobalConfig::getApiUrl), node("apiUrl")),
+                    firstText(saved(LLMGlobalConfig::getApiKey), node("apiKey")),
+                    model, embedding, image, video, memoryEnabled());
+        }
+    }
+
+    private static Long configId(Object value) {
+        if (value instanceof Number number) return number.longValue();
+        if (value instanceof String text && StringUtils.hasText(text)) return Long.parseLong(text);
         return null;
     }
 
-    private String trim(Object value) {
-        if (value == null) {
-            return null;
-        }
-        String text = String.valueOf(value).trim();
-        return text.isEmpty() ? null : text;
+    private static String nodeText(Map<String, Object> fields, String key) {
+        Object value = fields.get(key);
+        return value == null ? null : firstText(String.valueOf(value));
     }
 
-    private String firstText(String... values) {
+    private static String firstText(String... values) {
         for (String value : values) {
-            if (StringUtils.hasText(value)) {
-                return value.trim();
-            }
+            if (StringUtils.hasText(value)) return value.trim();
         }
         return null;
     }
 
-    private String canonicalizeProvider(String provider) {
-        if (provider == null) {
-            return null;
-        }
-        return switch (provider.trim().toLowerCase(Locale.ROOT)) {
-            case "volcengine", "ark", "agent_plan", "agent plan", "火山方舟" -> "volcengine_agent_plan";
+    private static String providerKey(String value) {
+        if (value == null) return null;
+        String key = value.trim().toLowerCase(Locale.ROOT);
+        return switch (key) {
+            case "volcengine", "ark", "agent_plan", "agent plan", "火山方舟" -> DEFAULT_PROVIDER;
             case "open ai" -> "openai";
             case "deep seek" -> "deepseek";
             case "通义千问" -> "qwen";
@@ -214,7 +160,7 @@ public class AgentPlanConfigResolver {
             case "智谱" -> "zhipu";
             case "ai ping" -> "ai_ping";
             case "agnes", "agnes ai" -> "agnes";
-            default -> provider.trim().toLowerCase(Locale.ROOT);
+            default -> key;
         };
     }
 }

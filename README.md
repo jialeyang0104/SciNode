@@ -82,6 +82,18 @@ PostgreSQL 流程默认读取本机 `5432/mimiciv` 与 `5433/mimiciii`；修改�
 
 当前流程可使用，下一步是在第一个节点填写你的实际提取要求，并核对新的查询方案。实现与本次验收记录在固定文件中更新，演示和实际研究的每次运行在应用内分别记录。
 
+### 核心模块兼容性重构
+
+[科研 MCP 页面](frontend/src/pages/McpToolPage.tsx)、[流程依赖排序](backend/src/main/java/com/scinode/engine/dag/DAGParser.java)与[模型配置解析](backend/src/main/java/com/scinode/service/AgentPlanConfigResolver.java)已重构。MCP 新增、删除、测试和结果预览继续使用原接口；节点配置字段、分支执行顺序、模型选择优先级及历史数据格式保持兼容。检索示例改为科研问题，搜索服务仍为火山方舟 Agent Plan；开源来源见[第三方署名](THIRD_PARTY_NOTICES.md)。
+
+验证入口：前端在 `frontend/` 执行 `npm run build`、`npx eslint src/pages/McpToolPage.tsx src/research/mcpSearchResults.ts` 和 `node --test src/research/*.test.mjs`；后端使用 Java 21，在 `backend/` 执行 `mvn '-Dtest=!SciNodeApplicationTests' test` 运行隔离的回归测试。完整应用上下文测试会读取本机环境并运行启动逻辑，需在专用测试环境中执行。
+
+源码、前端构建和后端回归检查已更新。本机当前后端仍运行之前的 JAR，需在方便中断服务时重新打包并重启，才会使用新的后端实现。
+
+### 软件著作权申请准备（本机）
+
+本机申请材料统一放在`软件著作权申请资料/`，从该目录的`README.md`进入。已完成环境与功能证据核对、业务理解草稿；当前等待确认软件名称、申报定位和修改开发口径。下一步是补充登记字段、确认代码选择、准备操作手册，再经审核生成正式材料。该目录不纳入公开仓库。
+
 ## Git 记录范围
 
 关联仓库：[jialeyang0104/SciNode](https://github.com/jialeyang0104/SciNode)。源码、测试、依赖清单与锁文件、配置示例、网站图标、使用文档和部署脚本纳入版本管理。
