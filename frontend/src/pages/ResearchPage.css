@@ -146,3 +146,5 @@
 .node-output-fields>div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #eceef3;padding:6px 0;font-size:12px}
 .node-output-fields strong{color:#36465c;font-weight:500}
 .node-output-fields code{color:#74699b;font-size:11px;overflow-wrap:anywhere}
+
+.node-assistant-entry{padding:10px 12px;margin:12px 0;border:1px solid #e1dff0;border-radius:10px;background:#f7f6fc}.node-assistant-entry .ant-btn{color:#514a91;border-color:#c9c4e1}.node-assistant-entry p{margin:5px 0 0;font-size:12px;line-height:1.6;color:#58647a}

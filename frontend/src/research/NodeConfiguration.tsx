@@ -1,6 +1,6 @@
 import {useEffect,useState,type RefObject} from 'react';
 import {Alert,Button,ConfigProvider,Divider,Input,InputNumber,Modal,Select,Space,Tag,Tabs,message} from 'antd';
-import {CheckCircleOutlined,CopyOutlined,DeleteOutlined,WarningOutlined} from '@ant-design/icons';
+import {CheckCircleOutlined,CopyOutlined,DeleteOutlined,WarningOutlined,RobotOutlined} from '@ant-design/icons';
 import type {LLMGlobalConfig} from '../api/llmConfig';
 import type {McpToolConfig} from '../api/mcpTools';
 import ModelSelection from './ModelSelection';
@@ -28,6 +28,7 @@ interface Props {
  variables:MappingOption[];
  onUpdate:(data:Partial<ResearchData>)=>void;
  onFileChange:(fileId:string|undefined)=>void;
+ onAssistant:()=>void;
  onPreview:()=>void;
  onCopy:()=>void;
  onSaveTemplate:()=>void;
@@ -35,7 +36,7 @@ interface Props {
  onRerun:()=>void;
 }
 
-export default function NodeConfiguration({selected,project,run,selectedResult,mutationDisabled,mutationReason,snapshot,frozenRevision,nodeEditorRef,configs,modelForNode,mcpTools,variables,onUpdate,onFileChange,onPreview,onCopy,onSaveTemplate,onDelete,onRerun}:Props){
+export default function NodeConfiguration({selected,project,run,selectedResult,mutationDisabled,mutationReason,snapshot,frozenRevision,nodeEditorRef,configs,modelForNode,mcpTools,variables,onUpdate,onFileChange,onAssistant,onPreview,onCopy,onSaveTemplate,onDelete,onRerun}:Props){
  const [mcpSchema,setMcpSchema]=useState<{tools:AssistantMcpTool[]}>();
  const [mcpBusy,setMcpBusy]=useState(false);
  const [variable,setVariable]=useState<string>();
@@ -87,6 +88,7 @@ export default function NodeConfiguration({selected,project,run,selectedResult,m
   <button className={`node-readiness ${issues.length?'needs-attention':'configured'}`} onClick={()=>setSection('outputs')} type="button">
    {issues.length?<WarningOutlined/>:<CheckCircleOutlined/>}<span><strong>{issues.length?`还有 ${issues.length} 项配置待补充`:'已填写主要配置'}</strong><small>{issues.length?'查看检查项，定位需要补充的地方':'运行前再核对资料、授权与输出'}</small></span><span>查看 ›</span>
   </button>
+  <div className="node-assistant-entry"><Button block icon={<RobotOutlined/>} onClick={onAssistant}>与助手一起调整此节点</Button><p>讨论任务、模型和上下游连接，复核后再载入。</p></div>
   <Tabs className="node-config-tabs" activeKey={section} onChange={key=>setSection(key as ConfigurationSection)} items={[{key:'task',label:'1 任务设置'},{key:'inputs',label:'2 输入资料'},{key:'outputs',label:'3 输出与检查'}]}/>
   <ConfigProvider componentDisabled={mutationDisabled}>
   <fieldset ref={nodeEditorRef} disabled={mutationDisabled} className="node-edit-fieldset">

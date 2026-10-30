@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Alert, Button, Card, Collapse, Empty, Input, Space, Statistic, Tag, Tabs, Typography } from 'antd';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { Alert, Button, Card, Collapse, Empty, Input, Space, Statistic, Tag, Tabs, Typography, Modal, Segmented } from 'antd';
+import MarkdownPreview from './MarkdownPreview';
 import { formatReviewValue, parseReviewContent } from './ApprovalReviewParser';
 import './ApprovalReview.css';
 
@@ -28,7 +27,7 @@ export interface ApprovalReviewProps {
 
 type ContentCategory = '修订与补丁' | '审阅与证据' | '科学数据' | '文件与来源' | '其他材料';
 type ContentEntry = { key: string; path: string; value: unknown; category: ContentCategory };
-type PatchGroup = { paths: string[]; patches: unknown[] };
+type PatchGroup = { paths: string[]; patches: unknown[]; indices?:number[] };
 
 const categoryOrder: ContentCategory[] = ['修订与补丁', '审阅与证据', '科学数据', '文件与来源', '其他材料'];
 const categoryFor = (key: string, value: unknown): ContentCategory => {
@@ -103,8 +102,8 @@ function PatchCard({ item, index, open, onOpenChange }: { item: unknown; index: 
       </summary>
       {original !== undefined && revised !== undefined ? (
         <div className="approval-diff-grid">
-          <section><h5>原文</h5><pre>{formatReviewValue(original)}</pre></section>
-          <section><h5>修订稿</h5><pre>{formatReviewValue(revised)}</pre></section>
+          <section><h5>原文</h5>{typeof original==='string'?<MarkdownPreview text={original}/>:<pre>{formatReviewValue(original)}</pre>}</section>
+          <section><h5>修订稿</h5>{typeof revised==='string'?<MarkdownPreview text={revised}/>:<pre>{formatReviewValue(revised)}</pre>}</section>
         </div>
       ) : (
         <div className="approval-structured-value">{renderStructured(item, `修订项 ${index + 1}`, 0)}</div>
@@ -119,15 +118,19 @@ function PatchCard({ item, index, open, onOpenChange }: { item: unknown; index: 
   );
 }
 
+function DocumentComparison({group}:{group:PatchGroup}){
+ return <div className="approval-document-grid" aria-label="连续修订对照">{(['original','revised'] as const).map(side=><section key={side}><h4>{side==='original'?'原文':'修订稿'}</h4>{group.patches.map((item,index)=>{
+  const record=isRecord(item)?item:undefined;
+  const value=record?patchField(record,side==='original'?['original','before','old','source','originalText']:['text','revised','replacement','after','new','updated','revisedText']):side==='revised'?item:undefined;
+  return <article key={index}><span className="approval-paragraph-label">段落 {String(record?.index??(group.indices?.[index]??index)+1)}</span>{value===undefined?<p className="approval-missing-paragraph">本项未提供{side==='original'?'原文':'修订稿'}</p>:typeof value==='string'?<MarkdownPreview text={value}/>:renderStructured(value,`${side}-${index}`,0)}</article>;
+ })}</section>)}</div>;
+}
+
 function renderStructured(value: unknown, path: string, depth: number, fieldName = ''): ReactNode {
   if (typeof value === 'string') {
-    const markdownField = /review|plan|summary|report|assessment|audit|evidence|复核|审阅|计划|报告|证据/i.test(fieldName);
-    const markdownText = /(^|\n)\s{0,3}(#{1,6}\s|[-*+]\s|\d+[.)]\s|>\s)|(^|\n)\s*\|[^\n]+\|\s*$|\*\*[^*]+\*\*/m.test(value);
-    if (markdownField && markdownText) {
-      return <div className="approval-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown></div>;
-    }
+    if(!/script|stdout|stderr|error|path|hash|sha/i.test(fieldName))return <MarkdownPreview text={value}/>;
     if (value.length > 500 || value.includes('\n')) {
-      return <details className="approval-long-text"><summary>{value.length.toLocaleString()} 字 · 展开内容</summary><pre>{value}</pre></details>;
+      return <details className="approval-long-text"><summary>{value.length.toLocaleString()} 字 · 展开内容</summary><MarkdownPreview text={value}/></details>;
     }
     return <div className="approval-scalar">{value || <Text type="secondary">空字符串</Text>}</div>;
   }
@@ -229,6 +232,9 @@ export function ApprovalReview({
   onReturn,
   actionError,
 }: ApprovalReviewProps) {
+  const [readingMode, setReadingMode] = useState(false);
+  const [patchMode,setPatchMode] = useState<'document'|'patches'>('document');
+  const [activeTab,setActiveTab] = useState('');
   const [localNote, setLocalNote] = useState('');
   const [queryInput, setQueryInput] = useState('');
   const [expandedPatchKeys, setExpandedPatchKeys] = useState<Set<string> | null>(null);
@@ -252,6 +258,7 @@ export function ApprovalReview({
   }, [entries, query]);
   const visiblePatchGroups = useMemo(() => patchGroups.map(group => ({
     ...group,
+    indices:group.patches.map((patch,index)=>({patch,index})).filter(({patch,index})=>!query||`${group.paths.join(' ')} ${formatReviewValue(patch)} ${index+1}`.toLocaleLowerCase().includes(query)).map(({index})=>index),
     patches: group.patches.filter((patch, index) => !query || `${group.paths.join(' ')} ${formatReviewValue(patch)} ${index + 1}`.toLocaleLowerCase().includes(query)),
   })).filter(group => group.patches.length > 0 || !query), [patchGroups, query]);
   const visiblePatchKeys = useMemo(() => visiblePatchGroups.flatMap(group => { const original=patchGroups.find(item=>item.paths.join('|')===group.paths.join('|')); return group.patches.map(patch => `${group.paths.join('|')}-${original?.patches.indexOf(patch)}`); }), [visiblePatchGroups, patchGroups]);
@@ -288,15 +295,15 @@ export function ApprovalReview({
     }];
   });
 
-  return (
-    <section className="approval-review" aria-label="人工确认结构化审阅">
+  const content = (
+    <section className={`approval-review ${readingMode?'approval-reading-mode':''}`} aria-label="人工确认结构化审阅">
       <div className="approval-review-heading">
         <div>
           <span className="approval-review-eyebrow">STRUCTURED REVIEW</span>
           <h3>人工确认材料</h3>
           <p>{projectName || '科研运行'}{runId ? ` · 运行 ${runId.slice(0, 8)}` : ''}</p>
         </div>
-        <Space wrap>
+        <Space wrap><Button size="small" onClick={()=>setReadingMode(value=>!value)}>{readingMode?'退出全屏':'全屏审阅'}</Button>
           {typeof revision === 'number' && <Tag color="blue">运行版本 v{revision}</Tag>}
           {status && <Tag color={status === 'WAITING_APPROVAL' ? 'orange' : status === 'SUCCESS' ? 'green' : 'default'}>{statusLabel[status] || status}</Tag>}
         </Space>
@@ -327,26 +334,28 @@ export function ApprovalReview({
         className="approval-review-search"
       />
 
-      <Tabs className="approval-content-tabs" defaultActiveKey={patchGroups.length?'patches':'materials'} items={[
+      <Tabs className="approval-content-tabs" activeKey={activeTab||(patchGroups.length?'patches':'materials')} onChange={setActiveTab} items={[
         {key:'patches',label:`修订对照 (${patchGroups.reduce((total, group) => total + group.patches.length, 0)})`,children:<div className="approval-panel-scroll"><>
         <section className="approval-review-section">
           <div className="approval-section-heading">
-            <h4>修订补丁对比</h4>
+            <h4>原文与修订稿</h4><Segmented aria-label="修订阅读方式" value={patchMode} onChange={value=>setPatchMode(value as 'document'|'patches')} options={[{value:'document',label:'连续阅读'},{value:'patches',label:'逐项对照'}]}/>
             <Tag color="blue">{patchGroups.reduce((total, group) => total + group.patches.length, 0)} 项</Tag>
             <Tag>结构化审阅 {reviewCount} 项</Tag>
-            <Button size="small" type="link" onClick={() => setExpandedPatchKeys(new Set(visiblePatchKeys))}>展开全部</Button>
-            <Button size="small" type="link" onClick={() => setExpandedPatchKeys(new Set())}>收起全部</Button>
+            <Button size="small" type="link" onClick={() => {setPatchMode('patches');setExpandedPatchKeys(new Set(visiblePatchKeys));}}>展开全部</Button>
+            <Button size="small" type="link" onClick={() => {setPatchMode('patches');setExpandedPatchKeys(new Set());}}>收起全部</Button>
           </div>
+          <p className="approval-reading-hint">连续阅读展示本次提供的全部修订段落；未修改的全文可在“AI复核与材料”或原始成果文件中查看。</p>
+          {!visiblePatchGroups.length&&<Empty description={query?'没有匹配的修订段落':'没有提供修订段落，请查看 AI复核与材料'}/>}
           {visiblePatchGroups.map(group => (
             <div className="approval-patch-group" key={group.paths.join('|')}>
 
 
-              <div className="approval-patch-list">{group.patches.map((patch, index) => {
+              <div>{patchMode==='document'?<DocumentComparison group={group}/>:<div className="approval-patch-list">{group.patches.map((patch, index) => {
                 const original=patchGroups.find(item=>item.paths.join('|')===group.paths.join('|'));
                 const key = `${group.paths.join('|')}-${original?.patches.indexOf(patch)}`;
                 const isOpen = expandedPatchKeys ? expandedPatchKeys.has(key) : !query && group === visiblePatchGroups[0] && index === 0;
-                return <PatchCard key={key} item={patch} index={index} open={isOpen} onOpenChange={open => setExpandedPatchKeys(current => { const next = new Set(current || []); if (open) next.add(key); else next.delete(key); return next; })} />;
-              })}</div>
+                return <PatchCard key={key} item={patch} index={original?.patches.indexOf(patch)??index} open={isOpen} onOpenChange={open => setExpandedPatchKeys(current => { const next = new Set(current || []); if (open) next.add(key); else next.delete(key); return next; })} />;
+              })}</div>}</div>
             </div>
           ))}
         </section>
@@ -380,6 +389,7 @@ export function ApprovalReview({
       </details>
     </section>
   );
+  return readingMode?<Modal className="approval-reader-modal" open width="calc(100vw - 24px)" style={{top:12,maxWidth:'none',paddingBottom:0}} styles={{body:{padding:0}}} footer={null} title="科研材料审阅" onCancel={()=>setReadingMode(false)}>{content}</Modal>:content;
 }
 
 export default ApprovalReview;

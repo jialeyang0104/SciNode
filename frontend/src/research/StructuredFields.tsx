@@ -3,6 +3,7 @@ import {Button,Checkbox,Input,InputNumber,Select,Space} from 'antd';
 import {DeleteOutlined,PlusOutlined} from '@ant-design/icons';
 import {appendArrayValue,defaultForSchema,hasUnsupportedSchema,removeArrayValue,removeRecordKey,renameRecordKey,schemaFieldDefinitions,setRecordValue,type ValueRecord} from './nodeFormLogic';
 import './StructuredFields.css';
+import MarkdownPreview from './MarkdownPreview';
 
 export interface ReadableValueProps {
   value: unknown;
@@ -40,14 +41,15 @@ function readableScalar(value:unknown,key?:string){
   return <span className="readable-scalar">{String(value)}</span>;
 }
 
-function ReadableNode({value,emptyLabel,compact,depth=0}:{value:unknown;emptyLabel:string;compact:boolean;depth?:number}){
+function ReadableNode({value,emptyLabel,compact,depth=0,fieldKey=''}:{value:unknown;emptyLabel:string;compact:boolean;depth?:number;fieldKey?:string}){
   if(value===undefined)return <span className="readable-empty">{emptyLabel}</span>;
-  if(Array.isArray(value))return value.length?<details className={`readable-value ${compact?'compact':''}`} open={depth===0}><summary>{valueKind(value)}</summary><ol className="readable-array">{value.map((item,index)=><li key={index}><span className="readable-index">{index+1}</span><ReadableNode value={item} emptyLabel={emptyLabel} compact={compact} depth={depth+1}/></li>)}</ol></details>:<span className="readable-empty">空列表</span>;
+  if(Array.isArray(value))return value.length?<details className={`readable-value ${compact?'compact':''}`} open={depth===0}><summary>{valueKind(value)}</summary><ol className="readable-array">{value.map((item,index)=><li key={index}><span className="readable-index">{index+1}</span><ReadableNode value={item} emptyLabel={emptyLabel} compact={compact} depth={depth+1} fieldKey={fieldKey}/></li>)}</ol></details>:<span className="readable-empty">空列表</span>;
   if(value&&typeof value==='object'){
     const entries=Object.entries(value as Record<string,unknown>);
-    return entries.length?<details className={`readable-value ${compact?'compact':''}`} open={depth===0}><summary>{valueKind(value)}</summary><dl className="readable-object">{entries.map(([key,item])=><div className="readable-row" key={key}><dt>{fieldNames[key]||key}{fieldNames[key]&&<small>{key}</small>}</dt><dd><ReadableNode value={item} emptyLabel={emptyLabel} compact={compact} depth={depth+1}/></dd></div>)}</dl></details>:<span className="readable-empty">空对象</span>;
+    return entries.length?<details className={`readable-value ${compact?'compact':''}`} open={depth===0}><summary>{valueKind(value)}</summary><dl className="readable-object">{entries.map(([key,item])=><div className="readable-row" key={key}><dt>{fieldNames[key]||key}{fieldNames[key]&&<small>{key}</small>}</dt><dd><ReadableNode value={item} emptyLabel={emptyLabel} compact={compact} depth={depth+1} fieldKey={key}/></dd></div>)}</dl></details>:<span className="readable-empty">空对象</span>;
   }
-  return readableScalar(value);
+  if(typeof value==='string'&&!['script','stdout','stderr','error','query','filePath','path','id','sha256','sourceSha256'].includes(fieldKey))return <MarkdownPreview text={value}/>;
+  return readableScalar(value,fieldKey);
 }
 
 export function ReadableValue({value,emptyLabel='暂无内容',compact=false}:ReadableValueProps){return <ReadableNode value={value} emptyLabel={emptyLabel} compact={compact}/>;}
