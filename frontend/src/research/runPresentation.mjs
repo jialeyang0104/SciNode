@@ -43,3 +43,21 @@ export function runStatusTransition(before,after,source='live') {
   const previous = before?.id === after.id ? before.status : 'STARTED';
   return {runId:after.id,previous,status:after.status,key:`${after.id}:${previous}>${after.status}`};
 }
+
+/** Present complete structured output as a short description, not clipped JSON. */
+export function nodeResultSummary(result,fallback) {
+  if (!result) return fallback;
+  const summary=result.summary || fallback;
+  const isStructured=value=>/^\s*(?:\{|\[\s*(?:[\[{"\d-]|\]|true\b|false\b|null\b))/.test(value)
+    && !/^\s*\[[^\]\r\n]+\](?:\(|\[|:|\s+\S)/.test(value);
+  if (!isStructured(summary)) return summary;
+  let content=result.output;
+  const text=typeof content?.text==='string'?content.text:summary;
+  if (typeof text==='string' && isStructured(text)) {
+    try { content=JSON.parse(text); }
+    catch { return '结构化内容摘录，打开节点预览查看完整结果。'; }
+  }
+  if (Array.isArray(content?.patches)) return `${content.patches.length} 项修订已生成。打开预览查看原文与修订稿。`;
+  if (Array.isArray(content)) return `${content.length} 项结构化结果，打开预览查看详细内容。`;
+  return '结构化结果，打开节点预览查看字段与内容。';
+}

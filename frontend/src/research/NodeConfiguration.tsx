@@ -11,6 +11,8 @@ import {InputMappingEditor,type MappingOption} from './InputMappingEditor';
 import {ReadableValue,StructuredFields,TypedParameters} from './StructuredFields';
 import {applyPromptPreset,fillBlankExample,findPromptPresetMatch} from './nodeFormLogic';
 import {bindTextSource,materialReferences,nodeSetupIssues,outputFieldNames,type ConfigurationSection} from './workflowReview';
+import MarkdownPreview from './MarkdownPreview';
+import {nodeResultSummary} from './runPresentation.mjs';
 
 interface Props {
  selected:ResearchNode;
@@ -81,7 +83,7 @@ export default function NodeConfiguration({selected,project,run,selectedResult,m
  const promptAlreadyContainsSource=promptSources.includes(selectedTaskSource);
  const sourceLabel=(source:string)=>variables.find(option=>option.value===source)?.label||source;
  return <aside className="research-config">
-  <div className="node-config-heading"><div><span className="node-config-eyebrow">NODE SETTINGS</span><h3>节点设置 <Tag>{catalogItem.label}</Tag></h3></div></div>
+  <div className="node-config-heading"><span className="node-config-eyebrow">NODE INSPECTOR · 节点设置</span><h3>{data.label}<Tag>{catalogItem.label}</Tag></h3><p className="node-config-description">{catalogItem.description}</p></div>
   {snapshot&&run&&<Alert type="info" message={`历史快照 · v${run.revision}`} description="配置只读，可切换下方标签查看。"/>}
   {mutationReason&&<Alert type="warning" message={mutationReason}/>}
   {!mutationDisabled&&frozenRevision!==undefined&&<Alert type="info" message={`成果已冻结于 v${frozenRevision}`} description="编辑后保存为新版本，冻结记录保留。"/>}
@@ -142,7 +144,7 @@ export default function NodeConfiguration({selected,project,run,selectedResult,m
   </ConfigProvider>
   <Divider/><Space wrap><Button icon={<CopyOutlined/>} disabled={mutationDisabled} onClick={onCopy}>复制</Button><Button disabled={mutationDisabled} onClick={onSaveTemplate}>存为模板</Button><Button danger icon={<DeleteOutlined/>} disabled={mutationDisabled} onClick={onDelete}>删除</Button></Space>
   {run&&<Button block disabled={mutationDisabled} onClick={onRerun}>从此节点创建重跑分支</Button>}
-  <Divider/><h4>本节点运行摘要</h4>{selectedResult?<><Tag color={selectedResult.status==='SUCCESS'?'success':selectedResult.status==='FAILED'?'error':undefined}>{selectedResult.status==='SUCCESS'?'成功':selectedResult.status==='FAILED'?'失败':selectedResult.status}</Tag><p>{selectedResult.summary}</p></>:<p className="node-result-empty">{run?`运行 v${run.revision} 中暂无此节点结果。`:'运行后，这里显示实际结果摘要。'}</p>}
+  <Divider/><h4>本节点运行摘要</h4>{selectedResult?<><Tag color={selectedResult.status==='SUCCESS'?'success':selectedResult.status==='FAILED'?'error':undefined}>{selectedResult.status==='SUCCESS'?'成功':selectedResult.status==='FAILED'?'失败':selectedResult.status}</Tag><MarkdownPreview text={nodeResultSummary(selectedResult,'暂无结果摘要')}/></>:<p className="node-result-empty">{run?`运行 v${run.revision} 中暂无此节点结果。`:'运行后，这里显示实际结果摘要。'}</p>}
   <Button onClick={onPreview}>查看完整输入、输出与日志</Button>
  </aside>;
 }

@@ -27,3 +27,25 @@ test('status notices describe live transitions, ignore same-state updates, and s
   assert.deepEqual(runStatusTransition(before,{...before,status:'FAILED'}),{runId:'run',previous:'RUNNING',status:'FAILED',key:'run:RUNNING>FAILED'});
   assert.equal(runStatusTransition(before,{id:'older-run',status:'SUCCESS'},'history'),null);
 });
+
+test('node summaries describe complete structured outputs without exposing clipped JSON',async()=>{
+  const {nodeResultSummary}=await import('./runPresentation.mjs');
+  const output={text:JSON.stringify({patches:[{index:1,text:'正文'},{index:2,text:'新正文'}]})};
+  const original=structuredClone(output);
+  assert.equal(nodeResultSummary({summary:'{"patches":[{"index":1,"text":"',output},'待执行'),'2 项修订已生成。打开预览查看原文与修订稿。');
+  assert.deepEqual(output,original);
+  assert.match(nodeResultSummary({summary:'{"truncated":'},'待执行'),/完整结果/);
+  assert.match(nodeResultSummary({summary:'[]',output:{text:'[]'}},'待执行'),/^0 项/);
+  assert.equal(nodeResultSummary(undefined,'待执行'),'待执行');
+  assert.equal(nodeResultSummary({summary:'## 研究摘要\n零例不良事件'},'待执行'),'## 研究摘要\n零例不良事件');
+  assert.equal(nodeResultSummary({summary:'连接失败'},'待执行'),'连接失败');
+});
+
+test('Markdown links, citations and scientific brackets remain readable summaries',async()=>{
+  const {nodeResultSummary}=await import('./runPresentation.mjs');
+  for (const summary of ['[PubMed](https://pubmed.ncbi.nlm.nih.gov/) 检索完成','[1] 文献记录','[IL-6] 水平升高','[来源][reference]']) {
+    assert.equal(nodeResultSummary({summary},'待执行'),summary);
+  }
+  assert.match(nodeResultSummary({summary:'[1,2]',output:[1,2]},'待执行'),/^2 项结构化结果/);
+  assert.match(nodeResultSummary({summary:'[1,2] \n',output:[1,2]},'待执行'),/^2 项结构化结果/);
+});

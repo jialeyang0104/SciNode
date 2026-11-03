@@ -1,10 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  color: #253248;
-  background: #f2f5f8;
-  font-family: "Avenir Next", "Avenir", "PingFang SC", "Noto Sans SC", "Helvetica Neue", sans-serif;
-  --font-ui: "Avenir Next", "Avenir", "PingFang SC", "Noto Sans SC", "Helvetica Neue", sans-serif;
+  color: var(--text);
+  background: var(--background);
+  font-family: var(--font-ui);
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -14,7 +13,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #f2f5f8;
+  background: var(--background);
 }
 
 button,
@@ -253,7 +252,7 @@ select {
 .mcp-test-raw pre {
   background: #0f172a;
   border-radius: 8px;
-  color: #536277;
+  color: #dce7ef;
   font-size: 12px;
   line-height: 1.5;
   margin: 8px 0 0;
@@ -304,3 +303,12 @@ select {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Shared keyboard and typography defaults. */
+:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+button,a,input,textarea,select{touch-action:manipulation}
+::selection{background:#cbe7dd;color:var(--text)}
+.ant-modal,.ant-drawer{font-family:var(--font-ui)}
+.ant-modal .ant-modal-title,.ant-drawer .ant-drawer-title{font-weight:600}
+.ant-tag{font-variant-numeric:tabular-nums}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important}}

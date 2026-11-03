@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Alert, Button, Card, Collapse, Empty, Input, Space, Statistic, Tag, Tabs, Typography, Modal, Segmented } from 'antd';
+import {FullscreenOutlined,FullscreenExitOutlined} from '@ant-design/icons';
 import MarkdownPreview from './MarkdownPreview';
 import { formatReviewValue, parseReviewContent } from './ApprovalReviewParser';
 import './ApprovalReview.css';
@@ -303,7 +304,7 @@ export function ApprovalReview({
           <h3>人工确认材料</h3>
           <p>{projectName || '科研运行'}{runId ? ` · 运行 ${runId.slice(0, 8)}` : ''}</p>
         </div>
-        <Space wrap><Button size="small" onClick={()=>setReadingMode(value=>!value)}>{readingMode?'退出全屏':'全屏审阅'}</Button>
+        <Space wrap><Button size="small" icon={readingMode?<FullscreenExitOutlined/>:<FullscreenOutlined/>} onClick={()=>setReadingMode(value=>!value)}>{readingMode?'退出全屏':'全屏审阅'}</Button>
           {typeof revision === 'number' && <Tag color="blue">运行版本 v{revision}</Tag>}
           {status && <Tag color={status === 'WAITING_APPROVAL' ? 'orange' : status === 'SUCCESS' ? 'green' : 'default'}>{statusLabel[status] || status}</Tag>}
         </Space>
@@ -314,7 +315,7 @@ export function ApprovalReview({
       <div className="approval-review-stats">
         <Statistic title="材料字段" value={entries.length} />
         <Statistic title="修订项" value={patchGroups.reduce((total, group) => total + group.patches.length, 0)} />
-        <Statistic title="已解析 JSON 字符串" value={parsed.parsedStringCount} />
+        <Statistic title="关联成果" value={artifacts.length} />
         <Statistic title="决策历史" value={decisionItems} />
       </div>
 
@@ -330,12 +331,13 @@ export function ApprovalReview({
         value={queryInput}
         onChange={event => setQueryInput(event.target.value)}
         onSearch={setQueryInput}
+        aria-label="检索人工确认材料"
         placeholder="检索材料、原文、修订稿与决策记录"
         className="approval-review-search"
       />
 
       <Tabs className="approval-content-tabs" activeKey={activeTab||(patchGroups.length?'patches':'materials')} onChange={setActiveTab} items={[
-        {key:'patches',label:`修订对照 (${patchGroups.reduce((total, group) => total + group.patches.length, 0)})`,children:<div className="approval-panel-scroll"><>
+        {key:'patches',label:`修订对照 (${patchGroups.reduce((total, group) => total + group.patches.length, 0)})`,children:<div className="approval-panel-scroll" tabIndex={0} role="region" aria-label="修订对照阅读区"><>
         <section className="approval-review-section">
           <div className="approval-section-heading">
             <h4>原文与修订稿</h4><Segmented aria-label="修订阅读方式" value={patchMode} onChange={value=>setPatchMode(value as 'document'|'patches')} options={[{value:'document',label:'连续阅读'},{value:'patches',label:'逐项对照'}]}/>
@@ -360,11 +362,11 @@ export function ApprovalReview({
           ))}
         </section>
       </></div>},
-        {key:'materials',label:'AI复核与材料',children:<div className="approval-panel-scroll"><section className="approval-review-section">
+        {key:'materials',label:'AI复核与材料',children:<div className="approval-panel-scroll" tabIndex={0} role="region" aria-label="复核材料阅读区"><section className="approval-review-section">
         <div className="approval-section-heading"><h4>材料内容</h4><Tag>{grouped.size ? [...grouped.values()].reduce((sum, items) => sum + items.length, 0) : 0} 个字段</Tag><Tag>结构化审阅 {reviewCount} 项</Tag></div>
         {collapseItems.length > 0 ? <Collapse items={collapseItems} defaultActiveKey={collapseItems.map(item => item.key)} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={query ? '没有匹配的材料字段' : '当前运行没有待审阅材料'} />}
       </section></div>},
-        {key:'decisions',label:`决策记录 (${decisionItems})`,children:<div className="approval-panel-scroll"><section className="approval-review-section approval-history-section">
+        {key:'decisions',label:`决策记录 (${decisionItems})`,children:<div className="approval-panel-scroll" tabIndex={0} role="region" aria-label="决策记录阅读区"><section className="approval-review-section approval-history-section">
         <div className="approval-section-heading"><h4>决策历史</h4><Tag>{filteredDecisionCount}/{decisionItems} 条</Tag></div>
         <DecisionHistory decisions={decisions} query={query} />
       </section></div>},

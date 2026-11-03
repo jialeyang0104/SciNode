@@ -20,8 +20,10 @@ export default function ModelSelection({configs,value,onChange,disabled=false,st
  const selectedModel=value.model||selectedConfig?.model||'';
  const modelMissing=!!selectedModel&&inventoryLoaded&&!models.includes(selectedModel);
  const options=Array.from(new Set([...(selectedModel?[selectedModel]:[]),...models])).map(model=>({value:model,label:model===selectedModel&&modelMissing?model+'（未在库存中）':model,disabled:model===selectedModel&&modelMissing}));
+ const configOptions=configs.map(config=>({value:config.id,label:config.configName,disabled:false}));
+ if(value.configId&&!selectedConfig)configOptions.unshift({value:value.configId,label:`原服务 #${value.configId}（需重新选择）`,disabled:true});
  return <div className={stacked?'model-selection model-selection-stacked':'model-selection'} aria-label={ariaLabel}>
-  <Select aria-label={`${ariaLabel}服务配置`} allowClear={allowClear} value={value.configId} disabled={disabled} placeholder="选择服务配置" showSearch optionFilterProp="label" options={configs.map(config=>({value:config.id,label:config.configName}))} onChange={configId=>{const config=configs.find(item=>item.id===configId);onChange(config?{configId,model:config.model}:{});if(!config){request.current++;setModels([]);setInventoryLoaded(false);setError('');}}}/>
+  <Select aria-label={`${ariaLabel}服务配置`} allowClear={allowClear} value={value.configId} disabled={disabled} placeholder="选择服务配置" showSearch optionFilterProp="label" options={configOptions} onChange={configId=>{const config=configs.find(item=>item.id===configId);onChange(config?{configId,model:config.model}:{});if(!config){request.current++;setModels([]);setInventoryLoaded(false);setError('');}}}/>
   <Select aria-label={`${ariaLabel}模型`} value={selectedModel||undefined} disabled={disabled||!value.configId||loading||(!models.length&&!selectedModel)} placeholder={loading?'正在读取模型…':'选择具体模型'} showSearch optionFilterProp="label" options={options} onChange={model=>onChange({...value,model})} notFoundContent={loading?<Spin size="small"/>:'未读取到模型'}/>
   <Button aria-label="刷新模型列表" title="刷新实际模型列表" icon={<ReloadOutlined/>} disabled={disabled||!value.configId} loading={loading} onClick={()=>value.configId&&void load(value.configId,true)}/>
   {modelMissing&&<Alert className="model-selection-error" type="warning" showIcon message={`已保存的模型“${selectedModel}”未在当前服务库存中，请重新选择模型。`}/>}

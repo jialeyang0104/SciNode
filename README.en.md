@@ -159,6 +159,14 @@ Start with a small, inspectable workflow:
 
 Scripts and MCP tools run with the local account's permissions. Review their commands and access before execution. Prompt text, referenced material, parsed chat attachments, and selected tool results are sent to the model when used in a request; keep sensitive research records in local processing steps and inspect model-bound context before sending.
 
+## Workspace and reading layout
+
+The light workspace uses high-contrast text, a shared system font stack, and teal primary actions. The project library has category navigation, search, update/name sorting, and cards showing the current version, progress, and next action. Open a project to browse its version history.
+
+On wider screens, the assistant separates conversation history, chat, and the editable draft into three panels. Model endpoint, actual model, and reasoning level have explicit labels. Collapse either side panel for more reading space; narrow screens use closable overlays. The workflow editor also provides node-library, canvas, and inspector tabs on narrow screens.
+
+Node output and messages render Markdown as readable documents. Draft review uses a larger side-by-side comparison; human review supports full-screen continuous reading and keyboard scrolling. Shared colors and typography live in [frontend/src/theme.ts](frontend/src/theme.ts). Run `node --test src/research/*.test.mjs` from `frontend/` for regressions, including palette contrast and structured node summaries.
+
 ## Example: request-driven PostgreSQL extraction
 
 The repository includes [read-only extraction code](scripts/postgres_workflow.py), [dependencies](scripts/requirements-postgres.txt), and [tests](scripts/test_postgres_workflow.py). The configured local project connects these stages:

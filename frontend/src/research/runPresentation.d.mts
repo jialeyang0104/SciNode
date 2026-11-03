@@ -6,3 +6,4 @@ export function activeRunEdges(edges:Edge[],run:Run|null|undefined):Edge[];
 export function runStatusLabel(status?:string):string;
 export function runStatusAnnouncement(status?:string):string;
 export function runStatusTransition(before:Run|null|undefined,after:Run|null|undefined,source?:'live'|'history'):{runId:string;previous:string;status:string;key:string}|null;
+export function nodeResultSummary(result:import('./types').NodeResult|undefined,fallback:string):string;
