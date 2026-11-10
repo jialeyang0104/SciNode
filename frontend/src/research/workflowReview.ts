@@ -5,12 +5,13 @@ export interface ConfigurationIssue {key:string;section:ConfigurationSection;mes
 export interface SetupContext {sources:string[];modelReady?:boolean;fileIds?:string[]}
 
 export const workflowFieldNames:Record<string,string>={
+ analysisPreset:'临床统计任务',analysis:'统计参数',sheet:'Excel 工作表',presetId:'临床任务预设',taskFields:'研究定义',pubmedSearch:'检索条件',reviewChecklist:'临床审阅清单',
  label:'节点名称',kind:'执行方式',description:'用途说明',prompt:'任务提示词',configId:'模型端口',model:'具体模型',
  inputs:'输入资料',script:'执行脚本',timeout:'超时时间',query:'检索式',limit:'返回篇数',fileId:'项目文件',
  format:'导出格式',question:'确认问题',text:'任务正文',requiredFields:'必检字段',outputFields:'附加输出字段',
  mcpId:'MCP 工具',arguments:'工具参数',name:'项目名称',category:'科研分类',clinicalData:'临床数据标记',settings:'Agent 规则与默认设置',
 };
-export const outputFieldNames:Record<string,string>={text:'正文',model:'实际模型',paragraphs:'原文段落',tables:'表格',
+export const outputFieldNames:Record<string,string>={sheet:'读取的工作表',dataPath:'本地数据文件',columns:'数据列',retrieved:'本次获取篇数',abstractCount:'含摘要篇数',figureCount:'图表数',text:'正文',model:'实际模型',paragraphs:'原文段落',tables:'表格',
  sourceName:'来源文件名',sourceSha256:'来源校验值',papers:'文献列表',query:'实际检索式',total:'命中篇数',searchedAt:'检索时间',
  stdout:'标准输出',stderr:'错误日志',exitCode:'退出码',n:'样本数',summary:'汇总结果',passed:'检查通过',checks:'逐项检查结果',
  approved:'确认状态',decision:'确认意见',fileName:'成果文件名',exportMode:'导出方式',manifest:'文件清单',content:'返回内容',structuredContent:'结构化结果'};
@@ -35,7 +36,17 @@ export function nodeSetupIssues(data:ResearchData,context:SetupContext):Configur
   if(!data.prompt?.trim())add('prompt','task','写明需要模型完成的任务，或选择一个科研预设。');
   if(context.modelReady===false)add('model','task','选择模型端口与具体模型，或在项目设置中指定默认模型。');
  }
- if(['python','r'].includes(data.kind)&&!data.script?.trim())add('script','task','填写执行脚本，或补入空白示例后修改。');
+ if(['python','r'].includes(data.kind)&&!data.analysisPreset&&!data.script?.trim())add('script','task','填写执行脚本，或补入空白示例后修改。');
+ if(data.analysisPreset){
+  const analysis=data.analysis||{};
+  if(!data.fileId&&!data.inputs?.dataPath)add('analysis.file','task','选择临床数据表，或接入已连接的表格数据文件。');
+  if(data.analysisPreset==='table1'&&!analysis.continuous?.length&&!analysis.categorical?.length)add('analysis.variables','task','选择基线表的连续或分类变量。');
+  if(['regression','prediction','km'].includes(data.analysisPreset)&&!analysis.outcome)add('analysis.outcome','task','选择结局或事件状态列。');
+  if(['regression','prediction'].includes(data.analysisPreset)&&!analysis.covariates?.length)add('analysis.covariates','task','预先指定暴露、自变量或预测因子。');
+  if((data.analysisPreset==='km'||data.analysisPreset==='regression'&&analysis.method==='cox')&&!analysis.time)add('analysis.time','task','选择随访时间列。');
+  if(data.analysisPreset==='km'&&!analysis.group)add('analysis.group','task','选择生存曲线的分组列。');
+  if(data.analysisPreset==='prediction'&&!analysis.idColumn)add('analysis.id','task','选择唯一患者 ID 列。');
+ }
  if(data.kind==='pubmed'&&!data.query?.trim())add('query','task','填写 PubMed 检索式。');
  if(data.kind==='document'&&!data.fileId)add('fileId','inputs','选择要读取的项目文件；未导入时先在项目中添加资料。');
  if(data.fileId&&context.fileIds&&!context.fileIds.includes(data.fileId))add('fileId','inputs','所选文件已不在项目资料中，请重新选择。');
@@ -48,7 +59,7 @@ export function nodeSetupIssues(data:ResearchData,context:SetupContext):Configur
  if(data.kind==='export'&&blank(data.inputs?.text))add('inputs.text','inputs','接入要导出的正文 text；可在资料页快速接入上游结果。');
  else if(data.kind==='export'&&typeof data.inputs?.text!=='string')add('inputs.text','inputs','导出正文需要文字类型，请选择上游正文 text，或将固定值改为文本。');
  const upstreamIds=new Set(context.sources.flatMap(source=>materialReferences(source).map(ref=>ref.slice(2,-2).split('.')[0])));
- const transient=new Set(['preview','runVisualState','onAppend']);
+ const transient=new Set(['preview','runVisualState','onAppend','stepNumber']);
  for(const [key,value] of Object.entries(data)){
   if(transient.has(key))continue;
   for(const ref of materialReferences(value)){
@@ -82,7 +93,7 @@ export type WorkflowDefinition=Omit<AssistantDraft,'category'|'description'> & P
 export function compareWorkflow(previous:WorkflowDefinition|undefined,next:AssistantDraft):WorkflowChanges{
  const before=new Map(previous?.nodes.map(node=>[node.id,node])||[]),after=new Map(next.nodes.map(node=>[node.id,node]));
  const added=next.nodes.filter(node=>!before.has(node.id)),removed=(previous?.nodes||[]).filter(node=>!after.has(node.id));
- const ignored=new Set(['preview','runVisualState','onAppend']);
+ const ignored=new Set(['preview','runVisualState','onAppend','stepNumber']);
  const changed:NodeChange[]=[],moved:ResearchNode[]=[];
  for(const node of next.nodes){
   const old=before.get(node.id);if(!old)continue;

@@ -15,7 +15,7 @@
 .approval-review-diagnostics,.approval-review-diagnostics .ant-alert{width:100%;font-size:13px}
 .approval-review-diagnostics ul{padding-left:20px;margin:5px 0 0;overflow-wrap:anywhere}
 .approval-review-search{width:100%;flex-shrink:0}
-.approval-content-tabs{flex:1;min-height:0}
+.approval-content-tabs{flex:1;min-height:220px}
 .approval-content-tabs>.ant-tabs-nav{margin-bottom:10px;flex-shrink:0}
 .approval-content-tabs .ant-tabs-content-holder,.approval-content-tabs .ant-tabs-content,.approval-content-tabs .ant-tabs-tabpane{height:100%;min-height:0}
 .approval-panel-scroll{height:100%;min-height:0;overflow:auto;padding:4px 4px 16px;scrollbar-gutter:stable;overscroll-behavior:contain}
@@ -91,6 +91,7 @@
 .approval-review-actions>textarea{grid-column:1;font-size:14px;background:var(--surface)}
 .approval-review-actions>.ant-space{grid-column:2;align-self:end}
 .approval-review-actions>.ant-alert{grid-column:1/-1}
+.approval-review-actions>.approval-checklist-link{grid-column:1/-1;justify-self:start;padding:0;height:auto}
 .approval-review-raw{flex-shrink:0;margin:0;padding-top:4px;border-top:1px solid var(--border);font-size:12px}
 .approval-review-raw>summary{color:var(--primary);cursor:pointer}
 .approval-review-raw pre{margin-top:9px;max-height:240px}

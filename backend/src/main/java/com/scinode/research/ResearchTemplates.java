@@ -6,9 +6,11 @@ import java.util.*;
 final class ResearchTemplates {
     static JSONObject flow(String template){
         JSONArray nodes=new JSONArray(),edges=new JSONArray();
-        if("literature".equals(template)){
+        if(ClinicalTemplates.IDS.contains(Objects.toString(template,""))){
+            ClinicalTemplates.add(nodes,template);
+        }else if("literature".equals(template)){
             add(nodes,"search","pubmed","PubMed文献检索",Map.of("query","heat stroke AND rehabilitation","limit",10));
-            add(nodes,"summarize","llm","证据整理",Map.of("prompt","按研究设计、人群、主要结局和局限整理以下PubMed记录。保留PMID和链接。摘要元数据之外的信息标为待查原文。\n{{search.text}}"));
+            add(nodes,"summarize","llm","证据整理",Map.of("prompt","按研究设计、人群、主要结局和局限整理以下PubMed记录。保留PMID和链接。摘要未报告的信息标为未报告，需全文核对的项目标记待查原文。\n{{search.text}}"));
             add(nodes,"confirm","approve","确认文献材料",Map.of("question","确认检索范围、文献来源和证据边界；填写待补原文或调整意见。","inputs",Map.of("text","{{summarize.text}}")));
             add(nodes,"report","export","导出文献报告",Map.of("format","docx","inputs",Map.of("text","{{confirm.text}}")));
         }else if("analysis".equals(template)){
@@ -32,7 +34,7 @@ final class ResearchTemplates {
         // Patent export additionally needs the original file, selected alongside its document source in the UI.
         return new JSONObject(Map.of("nodes",nodes,"edges",edges));
     }
-    private static void add(JSONArray nodes,String id,String kind,String label,Map<String,Object> settings){
+    static void add(JSONArray nodes,String id,String kind,String label,Map<String,Object> settings){
         JSONObject data=new JSONObject(settings);data.put("kind",kind);data.put("label",label);data.putIfAbsent("inputs",new JSONObject());
         nodes.add(new JSONObject(Map.of("id",id,"type","research","position",Map.of("x",(nodes.size()%3)*300,"y",(nodes.size()/3)*180),"data",data)));
     }

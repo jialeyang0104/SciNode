@@ -94,10 +94,10 @@ public class ResearchService {
         if(Files.getFileStore(workspace).supportsFileAttributeView("posix"))Files.setPosixFilePermissions(workspace,java.nio.file.attribute.PosixFilePermissions.fromString("rwx------"));
         Files.createDirectories(workspace.resolve("inputs"));Files.createDirectories(workspace.resolve("runs"));
         JSONObject p=new JSONObject();p.put("id",pid);p.put("name",required(body,"name"));p.put("workspace",workspace.toAbsolutePath().toString());
-        p.put("category",body.getString("category")==null?switch(Objects.toString(body.getString("template"),"blank")){case "patent"->"专利与方案";case "literature"->"文献研究";case "analysis"->"数据分析";default->"其他科研";}:body.getString("category"));p.put("description",Objects.toString(body.getString("description"),""));p.put("lifecycle","ACTIVE");p.put("settings",preferences.normalize(body.getJSONObject("settings")));
+        p.put("category",body.getString("category")==null?switch(Objects.toString(body.getString("template"),"blank")){case "patent"->"专利与方案";case "literature"->"文献研究";case "analysis"->"数据分析";case "cohort","prediction","systematic","protocol"->"临床研究";default->"其他科研";}:body.getString("category"));p.put("description",Objects.toString(body.getString("description"),""));p.put("lifecycle","ACTIVE");p.put("settings",preferences.normalize(body.getJSONObject("settings")));
         p.put("createdAt",now());p.put("updatedAt",now());p.put("revision",1);p.put("clinicalData",body.getBooleanValue("clinicalData"));
         p.put("nodes",flow.getJSONArray("nodes"));p.put("edges",flow.getJSONArray("edges"));p.put("files",new JSONArray());p.put("versions",new JSONArray());
-        version(p,"创建项目");store.write(user,"projects",p);return p;
+        version(p,"创建项目");store.write(user,"projects",p);TaskWorkspace.projectReadme(workspace,p);return p;
     }
     private void version(JSONObject p,String note){
         JSONObject v=new JSONObject();v.put("revision",p.getInteger("revision"));v.put("createdAt",now());v.put("note",note);
@@ -114,7 +114,7 @@ public class ResearchService {
         if(body.containsKey("settings"))p.put("settings",preferences.normalize(body.getJSONObject("settings")));
         p.put("name",required(body,"name"));p.put("clinicalData",body.getBooleanValue("clinicalData"));
         p.put("nodes",body.getJSONArray("nodes"));p.put("edges",body.getJSONArray("edges"));p.put("revision",p.getIntValue("revision")+1);p.put("updatedAt",now());
-        version(p,body.getString("note")==null?"调整工作流":body.getString("note"));store.write(user,"projects",p);return p;
+        version(p,body.getString("note")==null?"调整工作流":body.getString("note"));store.write(user,"projects",p);TaskWorkspace.projectReadme(store.resolvePath(p.getString("workspace")),p);return p;
     }
     public synchronized JSONObject upload(String user,String pid,MultipartFile upload)throws IOException{
         JSONObject p=project(user,pid);editable(p);String name=upload.getOriginalFilename();
@@ -124,6 +124,15 @@ public class ResearchService {
         upload.transferTo(path);
         JSONObject f=new JSONObject(Map.of("id",fid,"name",name,"path",path.toString(),"size",Files.size(path),"sha256",ResearchStore.hash(path),"importedAt",now()));
         p.getJSONArray("files").add(f);p.put("updatedAt",now());store.write(user,"projects",p);return f;
+    }
+    public JSONObject inspectFile(String user,String pid,String fid,String sheet)throws Exception{
+        JSONObject project=project(user,pid);
+        JSONObject file=project.getJSONArray("files").stream().map(o->(JSONObject)o).filter(f->fid.equals(f.getString("id"))).findFirst().orElseThrow(()->new IllegalArgumentException("项目文件不存在"));
+        Path path=store.resolvePath(file.getString("path"));
+        if(!ResearchStore.hash(path).equals(file.getString("sha256")))throw new IllegalArgumentException("输入文件已改变，请重新导入");
+        Path temporary=Files.createTempDirectory("scinode-table-preview-");
+        try{return new JSONObject(tools.inspectTable(path,sheet,temporary));}
+        finally{try(var paths=Files.walk(temporary)){for(Path item:paths.sorted(Comparator.reverseOrder()).toList())Files.deleteIfExists(item);}}
     }
     public List<JSONObject> runs(String user,String pid)throws IOException{
         project(user,pid);return store.list(user,"runs").stream().filter(r->pid.equals(r.getString("projectId"))).toList();
@@ -191,7 +200,8 @@ public class ResearchService {
         List<WorkflowNode> order=validateGraph(p);
         for(WorkflowNode n:order){JSONObject d=new JSONObject(n.getData());String kind=d.getString("kind");
             if("llm".equals(kind)){if(!body.getBooleanValue("allowModel"))throw new IllegalArgumentException("请确认本次模型发送材料后再运行");modelDiscovery.validateSelection(d.getLong("configId"),d.getString("model"));}
-            if(Set.of("python","r").contains(kind))required(d,"script");
+            if(Set.of("python","r").contains(kind)&&d.getString("analysisPreset")==null)required(d,"script");
+            ClinicalDataPolicy.validateOutbound(n.getId(),d,p);
             if("check".equals(kind)&&(d.getJSONArray("requiredFields")==null||d.getJSONArray("requiredFields").isEmpty()))throw new IllegalArgumentException("请配置质量检查的必需字段");
             if("document".equals(kind))required(d,"fileId");
             if("pubmed".equals(kind))required(d,"query");
@@ -233,7 +243,7 @@ public class ResearchService {
             r.put("parentRunId",previous.getString("id"));r.put("rerunFrom",start);r.put("invalidatedNodes",invalid);
         }
         Path dir=store.resolvePath(p.getString("workspace")).resolve("runs").resolve(r.getString("id"));Files.createDirectories(dir);
-        r.put("runDir",dir.toString());persistRun(user,r);dispatch(user,r.getString("id"));return r;
+        r.put("runDir",dir.toString());r.put("taskLayout",2);TaskWorkspace.runReadme(dir,r);TaskWorkspace.projectReadme(store.resolvePath(p.getString("workspace")),p);persistRun(user,r);dispatch(user,r.getString("id"));return r;
     }
     private void verifyInputs(JSONObject p)throws IOException{for(Object obj:p.getJSONArray("files")){JSONObject f=(JSONObject)obj;Path path=store.resolvePath(f.getString("path"));if(!Files.isRegularFile(path)||!ResearchStore.hash(path).equals(f.getString("sha256")))throw new IllegalArgumentException("输入文件已改变或缺失，请重新导入: "+f.getString("name"));}}
     JSONObject modelIdentity(LLMGlobalConfig c){return copy(new JSONObject(Map.of("id",c.getId(),"provider",c.getProvider(),"model",c.getModel(),"apiUrl",c.getApiUrl(),"temperature",c.getTemperature()==null?0.2:c.getTemperature(),"credentialHash",ResearchStore.hash(c.getApiKey().getBytes(java.nio.charset.StandardCharsets.UTF_8)))));}
@@ -268,19 +278,21 @@ public class ResearchService {
             if(Thread.currentThread().isInterrupted())throw new InterruptedException("服务关闭中断运行");
             if(pauseRequests.contains(user+":"+rid)){r.put("status","PAUSED");r.put("currentNodeId",nid);persistRun(user,r);return;}
             JSONObject config=(JSONObject)resolve(node.getData(),context);String kind=config.getString("kind");
-            Path dir=store.resolvePath(r.getString("runDir")).resolve(nid);Files.createDirectories(dir);
+            Path dir=taskDir(r,nid);Files.createDirectories(dir);
             JSONObject input=config.getJSONObject("inputs");input=input==null?new JSONObject():copy(input);
             if("document".equals(kind)||config.getString("fileId")!=null){
                 String fid=required(config,"fileId");JSONObject file=p.getJSONArray("files").stream().map(o->(JSONObject)o).filter(f->fid.equals(f.getString("id"))).findFirst().orElseThrow(()->new IllegalArgumentException("请重新选择已导入文件"));
                 if(!ResearchStore.hash(store.resolvePath(file.getString("path"))).equals(file.getString("sha256")))throw new IllegalArgumentException("输入文件校验失败: "+file.getString("name"));
-                input.put("filePath",file.getString("path"));
+                input.put("filePath",store.resolvePath(file.getString("path")).toString());
             }
-            if("package".equals(kind)){input.put("artifacts",JSON.parseArray(r.getJSONArray("artifacts").toJSONString()));input.put("nodeResults",copy(r.getJSONObject("nodeResults")));input.put("definition",copy(p));input.put("decisions",JSON.parseArray(r.getJSONArray("decisions").toJSONString()));input.put("models",copy(r.getJSONObject("models")));input.put("settingsSnapshot",r.getJSONObject("settingsSnapshot"));}
+            if("package".equals(kind)){input.put("artifacts",JSON.parseArray(r.getJSONArray("artifacts").toJSONString()));input.put("nodeResults",copy(r.getJSONObject("nodeResults")));input.put("definition",copy(p));input.put("decisions",JSON.parseArray(r.getJSONArray("decisions").toJSONString()));input.put("models",copy(r.getJSONObject("models")));input.put("settingsSnapshot",r.getJSONObject("settingsSnapshot"));input.put("runInputs",r.getJSONObject("inputs"));}
             if("mcp".equals(kind))input.put("arguments",copy(config.getJSONObject("arguments")));
             JSONObject result=new JSONObject();result.put("status","RUNNING");result.put("label",config.getString("label"));result.put("startedAt",now());result.put("input",input);result.put("summary","正在处理");
+            TaskWorkspace.prepare(dir,config,input);TaskWorkspace.json(dir.resolve("config/result.json"),result);
             r.getJSONObject("nodeResults").put(nid,result);r.put("currentNodeId",nid);persistRun(user,r);
             if("approve".equals(kind)){
                 result.put("status","WAITING_APPROVAL");result.put("summary",config.getString("question")==null?"等待人工确认":config.getString("question"));
+                TaskWorkspace.json(dir.resolve("config/result.json"),result);collectArtifacts(r,nid,dir);
                 r.put("status","WAITING_APPROVAL");persistRun(user,r);return;
             }
             try{
@@ -290,6 +302,7 @@ public class ResearchService {
                     LLMGlobalConfig c=modelForNode(config,r.getJSONObject("settingsSnapshot"));
                     modelDiscovery.validateSelection(config.getLong("configId"),c.getModel());
                     if(!modelIdentity(c).equals(r.getJSONObject("models").getJSONObject(nid)))throw new IllegalArgumentException("模型配置已改变，请创建新运行");
+                    ClinicalDataPolicy.validateOutbound(nid,new JSONObject(node.getData()),p);
                     String prompt=required(config,"prompt");
                     if(prompt.length()>500000)throw new IllegalArgumentException("单次模型材料超过500000字符，请拆分节点");
                     result.put("sentPreview",prompt.substring(0,Math.min(prompt.length(),2000)));result.put("sentCharacters",prompt.length());persistRun(user,r);
@@ -308,18 +321,22 @@ public class ResearchService {
                 result.put("output",new JSONObject(output));result.put("status","SUCCESS");result.put("finishedAt",now());
                 result.put("elapsedMs",java.time.Duration.between(Instant.parse(result.getString("startedAt")),Instant.now()).toMillis());
                 String text=Objects.toString(output.get("text"),Objects.toString(output.get("stdout"),JSON.toJSONString(output)));result.put("summary",text.substring(0,Math.min(text.length(),240)));
+                TaskWorkspace.json(dir.resolve("config/result.json"),result);
                 context.put(nid,new JSONObject(output));collectArtifacts(r,nid,dir);persistRun(user,r);
-            }catch(Exception e){input.remove("_workDir");result.put("status","FAILED");result.put("finishedAt",now());result.put("error",safeError(e));result.put("summary","执行失败，请查看日志");collectArtifacts(r,nid,dir);r.put("status","FAILED");r.put("error",safeError(e));persistRun(user,r);return;}
+            }catch(Exception e){input.remove("_workDir");result.put("status","FAILED");result.put("finishedAt",now());result.put("error",safeError(e));result.put("summary","执行失败，请查看日志");TaskWorkspace.json(dir.resolve("config/result.json"),result);collectArtifacts(r,nid,dir);r.put("status","FAILED");r.put("error",safeError(e));persistRun(user,r);return;}
         }
         verifyInputs(p);r.put("status","SUCCESS");r.put("finishedAt",now());r.put("currentNodeId",null);persistRun(user,r);
     }
     private String safeError(Exception e){String text=e.getMessage()==null?e.getClass().getSimpleName():e.getMessage();for(LLMGlobalConfig c:models.list())if(c.getApiKey()!=null&&!c.getApiKey().isBlank())text=text.replace(c.getApiKey(),"[密钥隐藏]");return text.substring(0,Math.min(text.length(),6000));}
+    private Path taskDir(JSONObject run,String nid){Path root=store.resolvePath(run.getString("runDir"));return run.getIntValue("taskLayout")==2?root.resolve("tasks").resolve(nid):root.resolve(nid);}
     private void collectArtifacts(JSONObject run,String nid,Path dir)throws IOException{
         try(var files=Files.walk(dir)){
-            for(Path f:files.filter(Files::isRegularFile).filter(f->f.startsWith(dir.resolve("output"))||f.getFileName().toString().endsWith(".log")).toList()){
+            for(Path f:files.filter(Files::isRegularFile).filter(f->!f.toString().contains("__pycache__")&&!f.getFileName().toString().startsWith(".")).sorted().toList()){
                 if(!f.toRealPath().startsWith(dir.toRealPath()))throw new IllegalArgumentException("成果文件应位于当前节点目录");
                 if(Files.size(f)>100*1024*1024)throw new IllegalArgumentException("单个成果文件超过100MB，请分批输出");
-                run.getJSONArray("artifacts").add(new JSONObject(Map.of("nodeId",nid,"name",f.getFileName().toString(),"path",f.toString(),"size",Files.size(f),"sha256",ResearchStore.hash(f))));
+                String local=dir.relativize(f).toString();
+                run.getJSONArray("artifacts").removeIf(o->f.toString().equals(((JSONObject)o).getString("path")));
+                run.getJSONArray("artifacts").add(new JSONObject(Map.of("nodeId",nid,"name",f.getFileName().toString(),"path",f.toString(),"size",Files.size(f),"sha256",ResearchStore.hash(f),"relativePath","tasks/"+nid+"/"+local,"role",local.startsWith("output/")?"result":local.startsWith("src/")?"code":local.startsWith("logs/")?"log":"provenance")));
             }
         }
     }
@@ -340,10 +357,15 @@ public class ResearchService {
         verifyInputs(r.getJSONObject("definition"));
         if("WAITING_APPROVAL".equals(status)){
             String nid=r.getString("currentNodeId"),note=required(body,"note");boolean approved=body.getBooleanValue("approved");
-            JSONObject decision=new JSONObject(Map.of("nodeId",nid,"approved",approved,"note",note,"by",user,"at",now()));r.getJSONArray("decisions").add(decision);
+            JSONObject nodeConfig=r.getJSONObject("definition").getJSONArray("nodes").stream().map(o->(JSONObject)o).filter(n->nid.equals(n.getString("id"))).findFirst().orElseThrow().getJSONObject("data");
+            JSONArray checklist=nodeConfig.getJSONArray("reviewChecklist"),checked=body.getJSONArray("checkedItems");
+            if(approved&&checklist!=null&&!checklist.isEmpty()&&(checked==null||!checked.containsAll(checklist)))throw new IllegalArgumentException("请完成本节点的临床审阅清单后确认");
+            JSONObject decision=new JSONObject(Map.of("nodeId",nid,"approved",approved,"note",note,"by",user,"at",now()));
+            decision.put("checkedItems",checked==null?new JSONArray():checked);r.getJSONArray("decisions").add(decision);
             JSONObject result=r.getJSONObject("nodeResults").getJSONObject(nid);result.put("finishedAt",now());
-            if(!approved){result.put("status","REJECTED");result.put("summary",note);r.put("status","REJECTED");persistRun(user,r);return r;}
+            if(!approved){result.put("status","REJECTED");result.put("summary",note);r.put("status","REJECTED");TaskWorkspace.json(taskDir(r,nid).resolve("config/result.json"),result);TaskWorkspace.json(taskDir(r,nid).resolve("config/decision.json"),decision);collectArtifacts(r,nid,taskDir(r,nid));persistRun(user,r);return r;}
             result.put("status","SUCCESS");JSONObject output=new JSONObject(result.getJSONObject("input"));output.put("approved",true);output.put("decision",note);output.putIfAbsent("text",note);result.put("output",output);result.put("summary",note);
+            TaskWorkspace.json(taskDir(r,nid).resolve("config/result.json"),result);TaskWorkspace.json(taskDir(r,nid).resolve("config/decision.json"),decision);collectArtifacts(r,nid,taskDir(r,nid));
         }
         r.put("status","QUEUED");persistRun(user,r);dispatch(user,rid);return r;
     }
@@ -353,8 +375,9 @@ public class ResearchService {
         verifyInputs(r.getJSONObject("definition"));
         Path freezeDir=store.resolvePath(r.getString("runDir")).resolve("frozen");Files.createDirectories(freezeDir);
         JSONArray frozen=new JSONArray();int i=0;
-        for(Object obj:r.getJSONArray("artifacts")){JSONObject a=(JSONObject)obj;Path original=verifiedArtifact(r,a),target=freezeDir.resolve(String.format("%03d_",i++)+a.getString("name"));
-            Files.copy(original,target);if(!ResearchStore.hash(target).equals(a.getString("sha256")))throw new IllegalArgumentException("冻结副本校验失败，请检查文件变化: "+a.getString("name"));JSONObject cloned=copy(a);cloned.put("path",target.toString());frozen.add(cloned);}
+        for(Object obj:r.getJSONArray("artifacts")){JSONObject a=(JSONObject)obj;Path original=verifiedArtifact(r,a),target=freezeDir.resolve(a.getString("relativePath")!=null?a.getString("relativePath"):String.format("%03d_",i++)+a.getString("name")).normalize();
+            if(!target.startsWith(freezeDir))throw new IllegalArgumentException("冻结文件路径无效");
+            Files.createDirectories(target.getParent());Files.copy(original,target);if(!ResearchStore.hash(target).equals(a.getString("sha256")))throw new IllegalArgumentException("冻结副本校验失败，请检查文件变化: "+a.getString("name"));JSONObject cloned=copy(a);cloned.putIfAbsent("originalPath",a.getString("path"));cloned.put("path",target.toString());frozen.add(cloned);}
         r.put("artifacts",frozen);r.put("frozen",true);r.put("frozenAt",now());r.put("frozenBy",user);
         JSONObject manifest=copy(r);manifest.remove("frozenManifestSha256");Path file=freezeDir.resolve("manifest.json");Files.writeString(file,manifest.toJSONString());
         r.put("frozenManifestSha256",ResearchStore.hash(file));

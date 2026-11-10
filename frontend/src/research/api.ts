@@ -1,5 +1,6 @@
 import api from '../utils/request';
 import type {Project,Run,NodeTemplate,ProjectFile,AgentSettings,AssistantChatRequest,AssistantChatResponse,AssistantCancelResponse,AssistantRequestStatus,AssistantSession,AssistantSessionSummary,AssistantTaskView,AssistantResources,AssistantMcpTool,AssistantMcpCallResult,AssistantFileAttachment,AssistantLocalFileListing,CodexLinkStatus} from './types';
+import type {TableInspection} from './types';
 interface Result<T>{code:number;message:string;data:T}
 async function unwrap<T>(p:Promise<unknown>):Promise<T>{const r=await p as Result<T>;if(r.code!==200)throw new Error(r.message);return r.data;}
 export const research={
@@ -14,6 +15,7 @@ export const research={
  create:(body:unknown)=>unwrap<Project>(api.post('/api/research/projects',body)),
  save:(id:string,body:unknown)=>unwrap<Project>(api.put(`/api/research/projects/${id}`,body)),
  upload:(id:string,file:File)=>{const form=new FormData();form.append('file',file);return unwrap<ProjectFile>(api.post(`/api/research/projects/${id}/files`,form,{headers:{'Content-Type':'multipart/form-data'}}));},
+ tablePreview:(id:string,fileId:string,sheet?:string)=>unwrap<TableInspection>(api.get(`/api/research/projects/${id}/files/${fileId}/preview`,{params:sheet?{sheet}:undefined,timeout:150000})),
  runs:(id:string)=>unwrap<Run[]>(api.get(`/api/research/projects/${id}/runs`)),
  run:(id:string)=>unwrap<Run>(api.get(`/api/research/runs/${id}`)),
  start:(id:string,body:unknown)=>unwrap<Run>(api.post(`/api/research/projects/${id}/runs`,body)),

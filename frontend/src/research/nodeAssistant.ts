@@ -2,7 +2,7 @@ import type {AssistantDraft,ResearchNode} from './types';
 import type {WorkflowDefinition} from './workflowReview';
 
 export const nodeSessionPrefix=(nodeId:string)=>`节点 [${nodeId}] · `;
-const storedData=(node:ResearchNode)=>Object.fromEntries(Object.entries(node.data).filter(([key,value])=>!['preview','runVisualState','onAppend'].includes(key)&&typeof value!=='function'));
+const storedData=(node:ResearchNode)=>Object.fromEntries(Object.entries(node.data).filter(([key,value])=>!['preview','runVisualState','onAppend','stepNumber'].includes(key)&&typeof value!=='function'));
 
 export function nodeAssistantMaterial(workflow:WorkflowDefinition,nodeId:string){
  const node=workflow.nodes.find(item=>item.id===nodeId);

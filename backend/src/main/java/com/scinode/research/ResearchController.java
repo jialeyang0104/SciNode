@@ -42,6 +42,7 @@ public class ResearchController {
     @GetMapping("/projects/{id}") public Result<?> project(HttpServletRequest r,@PathVariable String id) throws Exception { return Result.success(service.project(user(r),id)); }
     @PutMapping("/projects/{id}") public Result<?> save(HttpServletRequest r,@PathVariable String id,@RequestBody JSONObject body) throws Exception { return Result.success(service.save(user(r),id,body)); }
     @PostMapping("/projects/{id}/files") public Result<?> upload(HttpServletRequest r,@PathVariable String id,@RequestParam("file") MultipartFile file) throws Exception { return Result.success(service.upload(user(r),id,file)); }
+    @GetMapping("/projects/{id}/files/{fileId}/preview") public Result<?> preview(HttpServletRequest r,@PathVariable String id,@PathVariable String fileId,@RequestParam(required=false) String sheet)throws Exception{return Result.success(service.inspectFile(user(r),id,fileId,sheet));}
     @PostMapping("/projects/{id}/runs") public Result<?> run(HttpServletRequest r,@PathVariable String id,@RequestBody JSONObject body) throws Exception { return Result.success(service.start(user(r),id,body)); }
     @GetMapping("/projects/{id}/runs") public Result<?> runs(HttpServletRequest r,@PathVariable String id) throws Exception { return Result.success(service.runs(user(r),id)); }
     @GetMapping("/runs/{id}") public Result<?> run(HttpServletRequest r,@PathVariable String id) throws Exception { return Result.success(service.run(user(r),id)); }

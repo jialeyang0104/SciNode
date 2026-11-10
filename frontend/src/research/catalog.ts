@@ -1,3 +1,4 @@
+import {clinicalTaskPresets} from './clinicalCatalog';
 import type {Kind,ResearchData} from './types';
 import type {ResearchTaskPreset} from './nodeFormLogic';
 export const pythonSample=`import json, os
@@ -23,6 +24,7 @@ write_json(list(n = length(x), summary = summary, text = text), file.path(out, '
 write.csv(data.frame(value=x), file.path(out, 'synthetic_data.csv'), row.names = FALSE)
 cat(text)`;
 export const llmTaskPresets:ResearchTaskPreset[]=[
+ ...clinicalTaskPresets,
  {id:'protocol-review',label:'方案审阅',guidance:'按研究问题、人群、暴露/干预、结局、时间窗、混杂和缺失数据审阅定义；把未提供的信息列为待确认。',prompt:'请审阅以下科研方案。依次检查研究问题与目标人群、纳排标准和时间零点、暴露/干预与结局定义、随访窗口和删失、混杂控制与缺失数据、数据来源与可执行性。\n输出：审阅结论、关键问题（严重度/材料依据/建议）、定义冲突、待研究者确认。区分方案中明确写出的内容与审阅建议；未提供的信息列为待确认，不自行补全。\n\n方案材料：\n{{input.text}}'},
  {id:'literature-extraction',label:'文献提取',guidance:'按研究设计、人群、干预/暴露、对照、结局和结果提取；保留 PMID/DOI，未提供字段明确标出。',prompt:'请从以下文献材料逐篇提取题名、PMID/DOI、研究设计、研究对象、干预或暴露、对照、结局、主要结果、随访和局限。输出为字段固定的表格，并列出来源信息缺失和需要查看原文的项目。只提取输入明确出现的内容；未提供字段写“未提供”，不要从题名或常识推断。\n\n文献材料：\n{{input.text}}'},
  {id:'evidence-map',label:'证据整理',guidance:'主张与来源逐项对应，区分观察结果、作者解释、推断和待验证假设；保留矛盾与阴性结果。',prompt:'请将以下材料整理成证据表：研究主张、来源标识、研究设计/样本、原始观察或结果、作者解释、证据限制、证据状态（直接报告/推断/待验证）。相互矛盾和阴性结果单独列出。材料没有给出的来源、样本量或结论写“未提供”，不得补造引用。\n\n待整理材料：\n{{input.text}}'},
@@ -33,10 +35,10 @@ export const llmTaskPresets:ResearchTaskPreset[]=[
 export const catalog:Record<Kind,{label:string;icon:string;description:string;outputs:string[];example:Partial<ResearchData>}>={
  mcp:{label:'MCP工具',icon:'⚙',description:'调用项目或全局已启用的科研工具。读取工具说明后按参数类型填写；调用状态与结果保存在运行记录中。',outputs:['text','content','structuredContent'],example:{arguments:{query:'heat stroke rehabilitation'}}},
  input:{label:'任务输入',icon:'✎',description:'记录目标、背景、材料范围和交付要求；下游节点可从这里引用 text。',outputs:['text'],example:{text:'研究目标：整理热射病康复设备方案。输出：修改计划、修订稿与待确认事项。'}},
- document:{label:'文档读取',icon:'▤',description:'读取已导入的 Word、可提取文字的 PDF 或文本文件；原文件保持不变。',outputs:['text','paragraphs','tables','sourceName','sourceSha256'],example:{}},
+ document:{label:'文档 / 临床表格',icon:'▤',description:'导入 Word/PDF/文本或 CSV/Excel 临床表格，预览列名与前 20 行数据。',outputs:['text','dataPath','sheet','columns','summary','n','paragraphs','tables','sourceName','sourceSha256'],example:{}},
  llm:{label:'科研任务',icon:'◈',description:'从科研任务预设开始，或自由编写提示词；核对任务和输入材料后再运行。',outputs:['text','model'],example:{prompt:'根据以下资料列出修改计划、证据状态和待人工确认事项。\n{{input.text}}'}},
- pubmed:{label:'PubMed检索',icon:'⌕',description:'按 PubMed 检索式获取文献元数据，记录 PMID、链接、检索时间和命中数。',outputs:['text','papers','query','total','searchedAt'],example:{query:'heat stroke AND rehabilitation',limit:10}},
- python:{label:'Python脚本',icon:'Py',description:'运行已确认的 Python 脚本。SCINODE_INPUT 是输入 JSON 文件，SCINODE_OUTPUT 是本节点成果目录。',outputs:['text','stdout','stderr','exitCode','n','summary'],example:{script:pythonSample,timeout:120}},
+ pubmed:{label:'PubMed检索',icon:'⌕',description:'按医学概念生成检索式，获取题录与结构化摘要，保留 PMID、来源和检索时间。',outputs:['text','papers','query','total','retrieved','abstractCount','searchedAt'],example:{query:'heat stroke AND rehabilitation',limit:10}},
+ python:{label:'临床统计 / Python',icon:'Py',description:'选择数据表与变量，完成基线、质量、回归、生存或预测分析；统计师可切换自定义脚本。',outputs:['text','stdout','stderr','exitCode','n','summary'],example:{analysisPreset:'quality',analysis:{},timeout:120}},
  r:{label:'R脚本',icon:'R',description:'运行已确认的 R 脚本。通过环境变量读取输入和输出目录；日志与退出码写入运行记录。',outputs:['text','stdout','stderr','exitCode','n','summary'],example:{script:rSample,timeout:120}},
  check:{label:'质量检查',icon:'✓',description:'核对输入映射中必需字段是否存在且非空，并提供逐字段检查结果。',outputs:['text','passed','checks'],example:{requiredFields:['text'],inputs:{text:'{{input.text}}'}}},
  approve:{label:'人工确认',icon:'☑',description:'运行到此节点时暂停，展示确认问题与上游材料；由你批准或退回。',outputs:['text','approved','decision'],example:{question:'请确认当前材料、修改范围和证据边界；填写确认意见或退回原因。',inputs:{text:'{{input.text}}'}}},
@@ -50,8 +52,8 @@ export const nodeGuidance:Record<Kind,string[]>={
  document:['先将资料导入项目，再选择文件。','Word 还会输出带段落索引的文字和表格。'],
  llm:['可以从科研任务预设开始，也可以直接编写自己的任务提示词。','套用预设只替换提示词，保留模型、文件和输入映射。'],
  pubmed:['检索式支持 PubMed 字段和布尔运算符。','返回题录/摘要信息；需要全文信息时另行导入并读取原文。'],
- python:['脚本是自定义执行内容；运行前检查代码与使用的输入。','合成数据示例只演示 result.json 输出，正式分析请替换为已确认的数据处理流程。'],
- r:['脚本是自定义执行内容；运行前检查代码与使用的输入。','合成数据示例只演示 result.json 输出，正式分析请替换为已确认的数据处理流程。'],
+ python:['临床统计向导从实际导入表格读取列名，参数与运行代码一起保存。','需要独立统计方法时切换自定义脚本，使用 SCINODE_INPUT 和 SCINODE_OUTPUT。'],
+ r:['自定义 R 脚本使用本机 Rscript；日志与依赖信息随任务保存。','临床统计向导使用共享 Python 实现，实际解释器记录在复现配置中。'],
  check:['必需字段名必须与下方输入映射的字段名一致。','核对字段完整性，研究设计与证据交由人工确认。'],
  approve:['把需要人决定的问题写清楚，并映射需要查看的资料。','工作流会在此暂停，确认后才继续后续节点。'],
  export:['text 是必填输入；选原 Word 并传入 patches 可按段落修订并保留图表。','不选原文件时将以 text 新建文档。'],
@@ -62,13 +64,13 @@ export const outputPreviews:Record<Kind,string>={
  input:'text：本次工作流的任务背景。',
  document:'text：全文摘录\nparagraphs：带段落索引的文字\ntables：识别到的表格',
  llm:'text：模型生成的任务结果\nmodel：此次实际使用的模型',
- pubmed:'papers：题录与 PMID/链接\ntotal：命中数\nsearchedAt：检索时间',
- python:'result.json 中的字段成为可引用输出，例如 n、summary、text。',
+ pubmed:'文献卡片含题录、PMID、结构化摘要和原文链接；另存实际检索式与获取时间。',
+ python:'生成统计报告、CSV 结果表；回归/生存/预测任务另存 PNG/PDF 图表。每个任务带实际代码、参数与依赖。',
  r:'result.json 中的字段成为可引用输出，例如 n、summary、text。',
  check:'passed：是否通过\nchecks：逐字段检查结果\ntext：质量检查通过',
  approve:'approved：是否通过\ndecision：确认或退回意见\ntext：确认后传递的材料',
  export:'text：导出状态\nfileName：成果文件名\nexportMode：indexed_patches 或 new_report',
- package:'text：成果包状态\nfileName：ZIP 文件名\nmanifest：包内文件清单',
+ package:'按任务组织的 ZIP：代码、配置、输入原件、结果、审核记录和复现入口。',
 };
 
 export const categories=['专利与方案','文献研究','临床研究','数据分析','组学研究','其他科研'];

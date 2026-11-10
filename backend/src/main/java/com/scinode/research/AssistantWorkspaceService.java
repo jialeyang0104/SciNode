@@ -522,7 +522,7 @@ public class AssistantWorkspaceService {
             WorkflowNode node = new WorkflowNode();
             node.setId("assistant-document");
             node.setType("research");
-            node.setData(Map.of("kind", "document", "filePath", contentPath.toString()));
+            node.setData(Map.of("kind", "document", "rawDocument", true, "filePath", contentPath.toString()));
             Map<String, Object> output;
             try {
                 output = tools.execute(node, Map.of("_workDir", work.toString(), "filePath", contentPath.toString()));

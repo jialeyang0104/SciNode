@@ -94,3 +94,15 @@ export function formatReviewValue(value: unknown): string {
     return String(value);
   }
 }
+
+/** Read only the latest decision for this node; pending reviews use fresh local checks. */
+export function recordedReviewChecks(decisions: unknown, nodeId: string | undefined, checklist: string[]): string[] {
+  if (!nodeId) return [];
+  const items: unknown[] = Array.isArray(decisions) ? decisions : decisions == null ? [] : [decisions];
+  const decision = items.slice().reverse().find((item): item is Record<string, unknown> =>
+    item !== null && typeof item === 'object' && 'nodeId' in item && item.nodeId === nodeId && 'approved' in item,
+  );
+  if (decision?.approved !== true || !Array.isArray(decision.checkedItems)) return [];
+  const recorded: unknown[] = decision.checkedItems;
+  return checklist.filter(item => recorded.includes(item));
+}

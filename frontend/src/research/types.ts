@@ -3,10 +3,14 @@ export type Kind = 'input'|'document'|'llm'|'pubmed'|'python'|'r'|'check'|'appro
 export interface ResearchData extends Record<string, unknown> {
   label: string; kind: Kind; description?: string; inputs?: Record<string,unknown>;runVisualState?:'idle'|'active'|'waiting'|'paused'|'failed'|'success';
   prompt?: string; script?: string; query?: string; limit?: number; timeout?: number; configId?: number; model?:string;
+  analysisPreset?:string; analysis?:AnalysisConfig; sheet?:string; presetId?:string; taskFields?:Record<string,string>; pubmedSearch?:PubmedSearch; reviewChecklist?:string[]; stepNumber?:number;
   mcpId?:number; arguments?:Record<string,unknown>;
   outputFields?: string[]; fileId?: string; format?: string; question?: string; text?: string; requiredFields?: string[];
   preview?: NodeResult; onAppend?: () => void;
 }
+export interface AnalysisConfig {group?:string;continuous?:string[];categorical?:string[];covariates?:string[];outcome?:string;time?:string;timeUnit?:string;idColumn?:string;eventValue?:string;method?:string;continuousFormat?:string;sheet?:string;testFraction?:number;seed?:number}
+export interface PubmedSearch {population?:string;exposure?:string;outcome?:string;years?:number;types?:string[]}
+export interface TableInspection {n:number;columns:{name:string;type:string;nonNull:number;missing:number;examples:unknown[]}[];preview:unknown[];text:string}
 export type ResearchNode = Node<ResearchData>;
 export interface ProjectFile { id:string;name:string;path:string;size:number;sha256:string }
 export interface AgentSettings {revision?:number;inheritGlobal?:boolean;agentRules?:string;skills?:string[];customSkills?:{name:string;content:string}[];mcpIds?:number[];defaultConfigId?:number;defaultModel?:string}
@@ -40,7 +44,7 @@ export interface AssistantMcpCallResult {id:string;resourceId:string;toolName:st
 export interface AssistantLocalFileEntry {name:string;path:string;directory:boolean;size?:number}
 export interface AssistantLocalFileListing {path:string;parentPath?:string;entries:AssistantLocalFileEntry[]}
 export interface CodexLinkStatus {linked:boolean;codexHome:string;skillsCount:number;mcpCount:number;warnings:string[]}
-export interface Artifact {nodeId:string;name:string;path:string;size:number;sha256:string}
+export interface Artifact {nodeId:string;name:string;path:string;size:number;sha256:string;relativePath?:string;role?:string}
 export interface NodeResult {label?:string;status:string;summary:string;input?:Record<string,unknown>;output?:Record<string,unknown>;error?:string;startedAt?:string;elapsedMs?:number;sentPreview?:string;sentCharacters?:number;reusedFrom?:string}
 export interface Run {settingsSnapshot?:Record<string,unknown>;id:string;projectId:string;projectName:string;revision:number;status:string;nodeResults:Record<string,NodeResult>;artifacts:Artifact[];currentNodeId?:string;createdAt:string;error?:string;frozen:boolean;definition:Project;inputs:Record<string,unknown>;decisions:unknown[];parentRunId?:string;models?:Record<string,unknown>;frozenManifestSha256?:string}
 export interface NodeTemplate {id:string;name:string;data:ResearchData}

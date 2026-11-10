@@ -32,6 +32,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import org.mockito.ArgumentCaptor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -456,6 +457,25 @@ class ResearchAssistantServiceTest {
             assistant.close();
             graphValidator.close();
         }
+    }
+
+    @Test
+    void assistantRoundTripsClinicalWizardAndChecklistWithoutRequiringGeneratedCode() {
+        ResearchService validator=new ResearchService(null,mock(ResearchToolExecutor.class),new WorkflowConfigParser(),new DAGParser(),mock(ChatClientFactory.class),mock(LLMGlobalConfigService.class),mock(ResearchPreferences.class));
+        ResearchAssistantService assistant=new ResearchAssistantService(validator,mock(ResearchPreferences.class),mock(LLMGlobalConfigService.class),mock(ChatClientFactory.class));
+        try {
+            JSONObject proposed=draft(false);
+            JSONObject analysis=proposed.getJSONArray("nodes").getJSONObject(2).getJSONObject("data");
+            analysis.remove("script");analysis.put("analysisPreset","regression");analysis.put("analysis",Map.of("outcome","death","covariates",List.of("age"),"eventValue","1"));
+            proposed.getJSONArray("nodes").getJSONObject(1).getJSONObject("data").put("taskFields",Map.of("研究疾病 / 人群","热射病"));
+            proposed.getJSONArray("nodes").getJSONObject(3).getJSONObject("data").put("reviewChecklist",List.of("核对结局","核对分母"));
+            JSONObject validated=assistant.validateDraft(proposed,null,new JSONObject(),4L,Set.of());
+            JSONObject actual=validated.getJSONArray("nodes").getJSONObject(2).getJSONObject("data");
+            assertEquals("regression",actual.getString("analysisPreset"));assertFalse(actual.containsKey("script"));
+            assertEquals("death",actual.getJSONObject("analysis").getString("outcome"));
+            assertEquals(2,validated.getJSONArray("nodes").getJSONObject(3).getJSONObject("data").getJSONArray("reviewChecklist").size());
+            analysis.put("analysisPreset","unknown");assertThrows(IllegalStateException.class,()->assistant.validateDraft(proposed,null,new JSONObject(),4L,Set.of()));
+        } finally {assistant.close();validator.close();}
     }
 
     @Test

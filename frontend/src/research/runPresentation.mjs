@@ -47,6 +47,11 @@ export function runStatusTransition(before,after,source='live') {
 /** Present complete structured output as a short description, not clipped JSON. */
 export function nodeResultSummary(result,fallback) {
   if (!result) return fallback;
+  if(result.status==='SUCCESS'&&result.output){
+    const output=result.output;
+    if(typeof output.retrieved==='number')return `检索命中 ${output.total} 篇 · 本次获取 ${output.retrieved} 篇 · 含摘要 ${output.abstractCount||0} 篇`;
+    if(typeof output.n==='number')return `数据记录 n=${output.n}${typeof output.summary?.analyzed==='number'?` · 分析 n=${output.summary.analyzed}`:''}${output.figureCount?` · 图表 ${output.figureCount} 张`:''}`;
+  }
   const summary=result.summary || fallback;
   const isStructured=value=>/^\s*(?:\{|\[\s*(?:[\[{"\d-]|\]|true\b|false\b|null\b))/.test(value)
     && !/^\s*\[[^\]\r\n]+\](?:\(|\[|:|\s+\S)/.test(value);

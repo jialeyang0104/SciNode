@@ -569,13 +569,21 @@ public class ResearchAssistantService {
                 cleanData.put("limit", limit);
             }
             if ("python".equals(kind) || "r".equals(kind)) {
-                cleanData.put("script", requiredText(data.get("script"), "node.data.script", 30_000));
+                if(data.getString("analysisPreset")!=null){
+                    String preset=data.getString("analysisPreset");
+                    if(!Set.of("quality","table1","regression","km","prediction").contains(preset))throw new IllegalStateException("未知的临床统计任务");
+                    JSONObject analysis=data.getJSONObject("analysis");
+                    if(analysis==null)analysis=new JSONObject();
+                    checkKeys(analysis,Set.of("group","continuous","categorical","covariates","outcome","time","timeUnit","idColumn","eventValue","method","continuousFormat","sheet","testFraction","seed"),"统计参数");
+                    cleanData.put("analysis",sanitizeJson(analysis));
+                }else cleanData.put("script", requiredText(data.get("script"), "node.data.script", 30_000));
                 cleanData.put("timeout", positiveInt(data.get("timeout"), 120, 1, 3600, "node.data.timeout"));
                 String review = "模型生成脚本；运行前请逐行审阅，并确认输入、输出路径、权限与副作用。";
                 String description = cleanData.getString("description");
-                cleanData.put("description", description == null || !description.contains("运行前请逐行审阅") ? (description == null || description.isBlank() ? review : description + "\n" + review) : description);
+                if(data.getString("analysisPreset")==null)cleanData.put("description", description == null || !description.contains("运行前请逐行审阅") ? (description == null || description.isBlank() ? review : description + "\n" + review) : description);
             }
             if ("approve".equals(kind)) cleanData.put("question", requiredText(data.get("question"), "node.data.question", 2_000));
+            if(data.containsKey("reviewChecklist"))cleanData.put("reviewChecklist",validateStringArray(data.getJSONArray("reviewChecklist"),"node.data.reviewChecklist",30));
             if ("check".equals(kind)) cleanData.put("requiredFields", validateStringArray(data.getJSONArray("requiredFields"), "node.data.requiredFields", 50));
             if ("export".equals(kind)) {
                 String format = data.getString("format");
@@ -629,11 +637,11 @@ public class ResearchAssistantService {
         Set<String> common = new LinkedHashSet<>(Set.of("kind", "label", "description", "inputs", "outputFields"));
         switch (kind) {
             case "input" -> common.add("text");
-            case "document" -> common.add("fileId");
-            case "llm" -> { common.add("prompt"); common.add("configId"); common.add("model"); }
-            case "pubmed" -> { common.add("query"); common.add("limit"); }
-            case "python", "r" -> { common.add("script"); common.add("timeout"); common.add("fileId"); }
-            case "approve" -> common.add("question");
+            case "document" -> { common.add("fileId");common.add("sheet"); }
+            case "llm" -> { common.add("prompt"); common.add("configId"); common.add("model");common.add("presetId");common.add("taskFields"); }
+            case "pubmed" -> { common.add("query"); common.add("limit");common.add("pubmedSearch"); }
+            case "python", "r" -> { common.add("script"); common.add("timeout"); common.add("fileId");common.add("analysisPreset");common.add("analysis"); }
+            case "approve" -> {common.add("question");common.add("reviewChecklist");}
             case "check" -> common.add("requiredFields");
             case "export" -> { common.add("format"); common.add("fileId"); }
             case "mcp" -> { common.add("mcpId"); common.add("arguments"); }
@@ -721,7 +729,7 @@ public class ResearchAssistantService {
             JSONObject data = node.getJSONObject("data");
             if (data != null) {
                 JSONObject safeData = new JSONObject();
-                for (String key : List.of("kind", "label", "description", "text", "prompt", "script", "query", "limit", "timeout", "configId", "mcpId", "fileId", "format", "question", "requiredFields", "outputFields", "inputs")) {
+                for (String key : List.of("kind", "label", "description", "text", "prompt", "script", "query", "limit", "timeout", "configId", "mcpId", "fileId", "format", "question", "requiredFields", "outputFields", "inputs", "analysisPreset", "analysis", "reviewChecklist", "sheet", "presetId", "taskFields", "pubmedSearch")) {
                     if (data.containsKey(key)) safeData.put(key, sanitizeJson(data.get(key)));
                 }
                 if (data.getString("fileId") != null) safeData.put("fileId", data.getString("fileId"));
@@ -844,7 +852,7 @@ public class ResearchAssistantService {
 
                 draft 结构：{"name":"项目名称","category":"科研分类","description":"项目简介","clinicalData":true,"settings":{"agentRules":"项目级 Agent 规则","defaultConfigId":%d},"nodes":[...],"edges":[...]}。草案字段只允许上述字段。settings 只能提案 agentRules、defaultConfigId 和 defaultModel；defaultModel 沿用当前设置基线中的本轮具体模型名称。workspace、skills、customSkills、mcpIds 与权限配置由界面设置。服务端保留现有项目授权，默认端口和具体模型沿用本轮选择。
 
-                每个节点都必须提供 id、type、position、data；data 必须提供 kind 与 label，可按需提供 description、inputs、outputFields。请逐项完整输出以下 kind 专属字段：document.fileId、llm.prompt、pubmed.query、python/r.script、approve.question、check.requiredFields、mcp.mcpId 与 arguments。input.text 为可选；pubmed.limit 可选且默认10（范围1至100）；python/r.timeout 可选且默认120；llm.configId 可选，省略时采用本轮配置，显式值使用模型目录中的真实配置 ID；llm.model 可选，用于选择该端口库存中的具体模型名称，填写时与对应 configId 的 models 库存精确匹配，缺失库存时先由用户在界面查询并选择；省略model沿用该端口默认模型，本轮统一分配则沿用用户本轮具体模型。export.format 可选且默认 docx；package 无额外字段。document.fileId 只可使用当前项目已附加文件。
+                每个节点都必须提供 id、type、position、data；data 必须提供 kind 与 label，可按需提供 description、inputs、outputFields。请逐项完整输出以下 kind 专属字段：document.fileId、llm.prompt、pubmed.query、python/r.script（或 analysisPreset 与 analysis）、approve.question、check.requiredFields、mcp.mcpId 与 arguments。input.text 为可选；pubmed.limit 可选且默认10（范围1至100）；python/r.timeout 可选且默认120；llm.configId 可选，省略时采用本轮配置，显式值使用模型目录中的真实配置 ID；llm.model 可选，用于选择该端口库存中的具体模型名称，填写时与对应 configId 的 models 库存精确匹配，缺失库存时先由用户在界面查询并选择；省略model沿用该端口默认模型，本轮统一分配则沿用用户本轮具体模型。export.format 可选且默认 docx；package 无额外字段。document.fileId 只可使用当前项目已附加文件。
 
                 大模型节点完整示例（configId 使用本轮真实值；prompt 必须是非空文本）：{"id":"searchPlan","type":"research","position":{"x":200,"y":0},"data":{"kind":"llm","label":"整理文献证据","prompt":"基于 {{search.papers}} 整理研究问题、检索范围、证据要点及待核验事项。","configId":%d,"inputs":{"papers":"{{search.papers}}"}}}。每个 llm 节点均须包含 data.prompt，长度为1至20000字符。节点 kind 必须来自枚举，变量引用使用 {{nodeId.field}} 且上游节点必须沿 edges 连通。edges 形如 {"id":"a_b","source":"a","target":"b"}，每条连线引用现存节点，构成无环图。
 
@@ -854,7 +862,7 @@ public class ResearchAssistantService {
 
                 任何通向 export 的路径都必须先经过 approve 节点，保证用户人工检查后才导出。科研流程建议设置 input/document → 检索或分析 → approve → export/package；文献示例可使用 pubmed → llm → approve → export；分析示例可使用 input → python 或 r → check → approve → export。样例仅作结构参考，不代表用户真实数据或已完成分析。
 
-                所有新增 llm 节点的 configId 只能使用当前模型目录中的真实配置 ID；统一分配时使用本轮选中的配置 %d（模型名 %s）。当前模型目录（仅包含配置 ID、别名、模型名和提供商；不要推断未列出的模型能力）：%s。新建 Python/R 脚本时，在节点 description 明确提示“运行前请逐行审阅，并确认输入、输出路径、权限与副作用”。脚本、MCP 参数、文件选择与执行范围都只作为草案建议，需用户复核。
+                所有新增 llm 节点的 configId 只能使用当前模型目录中的真实配置 ID；统一分配时使用本轮选中的配置 %d（模型名 %s）。当前模型目录（仅包含配置 ID、别名、模型名和提供商；不要推断未列出的模型能力）：%s。Python/R 临床向导可提供 analysisPreset（quality/table1/regression/km/prediction）和 analysis 参数，不提供 script。分析数据使用 fileId 或 inputs.dataPath 引用表格的 dataPath 输出。参数列名仅使用研究者提供或已核对的字段，不猜测；统计代码由系统提供。approve.reviewChecklist 为逐项核对的字符串数组。临床个体数据项目只向模型传递内置表格/统计节点的 text、summary；不得传递 preview、dataPath 或自定义脚本输出。新建自定义 Python/R 脚本时，在节点 description 明确提示“运行前请逐行审阅，并确认输入、输出路径、权限与副作用”。脚本、MCP 参数、文件选择与执行范围都只作为草案建议，需用户复核。
 
                 clinicalData 沿用当前项目标记；已有项目为 true 时继续保持 true。首页新建草案依据用户明确材料提出布尔值，材料未说明时在 reply 中标注待确认。提案不得把未知资料改写成已确认事实。
 

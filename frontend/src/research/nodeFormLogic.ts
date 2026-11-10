@@ -1,6 +1,7 @@
 export type ValueRecord = Record<string, unknown>;
 
 export interface ResearchTaskPreset {
+  stage?: string;
   id: string;
   label: string;
   guidance: string;

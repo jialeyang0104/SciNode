@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Alert, Button, Card, Collapse, Empty, Input, Space, Statistic, Tag, Tabs, Typography, Modal, Segmented } from 'antd';
+import { Alert, Button, Card, Collapse, Empty, Input, Space, Statistic, Tag, Tabs, Typography, Modal, Segmented, Checkbox } from 'antd';
 import {FullscreenOutlined,FullscreenExitOutlined} from '@ant-design/icons';
 import MarkdownPreview from './MarkdownPreview';
-import { formatReviewValue, parseReviewContent } from './ApprovalReviewParser';
+import {outputFieldNames} from './workflowReview';
+import { formatReviewValue, parseReviewContent, recordedReviewChecks } from './ApprovalReviewParser';
 import './ApprovalReview.css';
 
 const { TextArea } = Input;
@@ -17,11 +18,13 @@ export interface ApprovalReviewProps {
   status?: string;
   projectName?: string;
   runId?: string;
+  nodeId?: string;
   revision?: number;
   busy?: boolean;
   note?: string;
   onNoteChange?: (note: string) => void;
-  onApprove?: (note: string) => void | Promise<void>;
+  reviewChecklist?:string[];
+  onApprove?: (note: string, checkedItems:string[]) => void | Promise<void>;
   onReturn?: (note: string) => void | Promise<void>;
   actionError?: string;
 }
@@ -225,6 +228,7 @@ export function ApprovalReview({
   status,
   projectName,
   runId,
+  nodeId,
   revision,
   busy = false,
   note,
@@ -232,7 +236,9 @@ export function ApprovalReview({
   onApprove,
   onReturn,
   actionError,
+  reviewChecklist=[],
 }: ApprovalReviewProps) {
+  const [selectedChecks,setSelectedChecks]=useState<string[]>([]);
   const [readingMode, setReadingMode] = useState(false);
   const [patchMode,setPatchMode] = useState<'document'|'patches'>('document');
   const [activeTab,setActiveTab] = useState('');
@@ -241,13 +247,12 @@ export function ApprovalReview({
   const [expandedPatchKeys, setExpandedPatchKeys] = useState<Set<string> | null>(null);
   const query = queryInput.trim().toLocaleLowerCase();
   const parsed = useMemo(() => parseReviewContent(input), [input]);
-  const entries = useMemo(() => [
-    ...entriesFor(parsed.value),
-    ...artifacts.map((artifact, index) => ({ key: '关联成果文件', path: `$.artifacts[${index}]`, value: artifact })),
-  ], [parsed.value, artifacts]);
+  const entries = useMemo(() => entriesFor(parsed.value), [parsed.value]);
+  const visibleArtifacts = artifacts.filter(artifact => !query || formatReviewValue(artifact).toLocaleLowerCase().includes(query));
   const patchGroups = useMemo(() => collectPatchGroups(parsed.value), [parsed.value]);
   const decisionItems = Array.isArray(decisions) ? decisions.length : decisions == null ? 0 : 1;
   const rawNote = note ?? localNote;
+  const checkedItems = status === 'WAITING_APPROVAL' ? selectedChecks : recordedReviewChecks(decisions,nodeId,reviewChecklist);
   const grouped = useMemo(() => {
     const groups = new Map<ContentCategory, ContentEntry[]>();
     entries.forEach(({ key, path, value }) => {
@@ -289,7 +294,7 @@ export function ApprovalReview({
       key: category,
       label: <span>{category}<Tag className="approval-count-tag">{categoryEntries.length}</Tag></span>,
       children: <div className="approval-entry-grid">{categoryEntries.map(entry => (
-        <Card size="small" key={entry.path} className="approval-entry-card" title={<span>{entry.key}<Text type="secondary"> · {entry.path}</Text></span>}>
+        <Card size="small" key={entry.path} className="approval-entry-card" title={<span>{outputFieldNames[entry.key]||({review:'复核意见',plan:'研究方案'} as Record<string,string>)[entry.key]||entry.key}</span>}>
           {renderStructured(entry.value, entry.path, 0, entry.key)}
         </Card>
       ))}</div>,
@@ -366,6 +371,14 @@ export function ApprovalReview({
         <div className="approval-section-heading"><h4>材料内容</h4><Tag>{grouped.size ? [...grouped.values()].reduce((sum, items) => sum + items.length, 0) : 0} 个字段</Tag><Tag>结构化审阅 {reviewCount} 项</Tag></div>
         {collapseItems.length > 0 ? <Collapse items={collapseItems} defaultActiveKey={collapseItems.map(item => item.key)} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={query ? '没有匹配的材料字段' : '当前运行没有待审阅材料'} />}
       </section></div>},
+        ...(artifacts.length ? [{key:'files',label:`成果文件 (${artifacts.length})`,children:<div className="approval-panel-scroll" tabIndex={0} role="region" aria-label="审核成果文件"><div className="approval-entry-grid">
+          {visibleArtifacts.map((artifact,index)=>{const record=isRecord(artifact)?artifact:undefined;return <Card key={index} size="small" className="approval-entry-card" title={typeof record?.name==='string'?record.name:`成果文件 ${index+1}`}>
+            {typeof record?.size==='number'&&<p>{(record.size/1024).toFixed(1)} KB</p>}
+            <details><summary>来源与校验记录</summary>{renderStructured(artifact,`artifact-${index}`,0)}</details>
+          </Card>;})}
+          {!visibleArtifacts.length&&<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有匹配的成果文件"/>}
+        </div></div>}] : []),
+        ...(reviewChecklist.length ? [{key:'checklist',label:`审阅清单 (${checkedItems.length}/${reviewChecklist.length})`,children:<div className="approval-panel-scroll" tabIndex={0} role="region" aria-label="临床审阅清单"><section className="clinical-review-checklist"><strong>{hasActions?'逐项核对后继续':'本次决策的核对记录'}</strong>{reviewChecklist.map(item=><Checkbox key={item} disabled={!hasActions||busy} checked={checkedItems.includes(item)} onChange={event=>setSelectedChecks(current=>event.target.checked?[...current,item]:current.filter(value=>value!==item))}>{item}</Checkbox>)}{hasActions&&<Space wrap><Button size="small" onClick={()=>handleNoteChange('已核对清单，同意当前方案，继续执行。')}>同意当前方案</Button><Button size="small" onClick={()=>handleNoteChange('需调整纳排标准或结局定义，退回修改。')}>需调整研究定义</Button><Button size="small" onClick={()=>handleNoteChange('存在缺失变量或来源待核对，请补充后重新提交。')}>需补充资料</Button></Space>}</section></div>}] : []),
         {key:'decisions',label:`决策记录 (${decisionItems})`,children:<div className="approval-panel-scroll" tabIndex={0} role="region" aria-label="决策记录阅读区"><section className="approval-review-section approval-history-section">
         <div className="approval-section-heading"><h4>决策历史</h4><Tag>{filteredDecisionCount}/{decisionItems} 条</Tag></div>
         <DecisionHistory decisions={decisions} query={query} />
@@ -377,8 +390,9 @@ export function ApprovalReview({
           <label htmlFor="approval-review-note">确认意见或退回原因 <span>*</span></label>
           <TextArea id="approval-review-note" rows={2} value={rawNote} onChange={event => handleNoteChange(event.target.value)} placeholder="记录本次判断、依据、待补材料或退回修改意见" />
           {actionError && <Alert type="error" showIcon message={actionError} />}
+          {reviewChecklist.some(item=>!checkedItems.includes(item))&&<Button type="link" className="approval-checklist-link" onClick={()=>setActiveTab('checklist')}>先完成审阅清单（{checkedItems.length}/{reviewChecklist.length}）</Button>}
           <Space wrap>
-            {onApprove && <Button type="primary" loading={busy} disabled={busy || !rawNote.trim()} onClick={() => onApprove(rawNote.trim())}>确认并继续</Button>}
+            {onApprove && <Button type="primary" loading={busy} disabled={busy || !rawNote.trim() || reviewChecklist.some(item=>!checkedItems.includes(item))} onClick={() => onApprove(rawNote.trim(),checkedItems)}>确认并继续</Button>}
             {onReturn && <Button danger loading={busy} disabled={busy || !rawNote.trim()} onClick={() => onReturn(rawNote.trim())}>退回修改</Button>}
           </Space>
         </section>

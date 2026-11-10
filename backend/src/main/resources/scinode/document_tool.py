@@ -99,20 +99,8 @@ elif op == 'export':
     else: raise ValueError('导出格式请使用docx、pdf、md或txt')
     result = {'text': '已导出 ' + path.name, 'fileName': path.name, 'exportMode': 'indexed_patches' if params.get('patches') else 'new_report'}
 elif op == 'package':
-    path = out / 'research-package.zip'
-    manifest = {'createdAt': datetime.now(timezone.utc).isoformat(), 'files': []}
-    with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr('results.json', json.dumps(params, ensure_ascii=False, indent=2))
-        for i, artifact in enumerate(params.get('artifacts', [])):
-            source = Path(artifact['path'])
-            actual = hashlib.sha256(source.read_bytes()).hexdigest()
-            if actual != artifact['sha256']:
-                raise ValueError('成果文件校验失败: ' + source.name)
-            name = f'files/{i:03d}_{source.name}'
-            archive.write(source, name)
-            manifest['files'].append({'name': name, 'sha256': actual, 'size': source.stat().st_size})
-        archive.writestr('manifest.json', json.dumps(manifest, ensure_ascii=False, indent=2))
-    result = {'text': '成果包已生成', 'fileName': path.name, 'manifest': manifest}
+    from task_package import build_package
+    result = build_package(params, out)
 else: raise ValueError('未知文档操作: ' + op)
 (out / 'result.json').write_text(json.dumps(result, ensure_ascii=False), encoding='utf-8')
 print(json.dumps(result, ensure_ascii=False))

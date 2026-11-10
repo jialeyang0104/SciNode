@@ -28,7 +28,7 @@ Researchers own study definitions and scientific decisions; SciNode connects the
 - **Organize research projects:** group protocols and patents, literature reviews, clinical research, data analysis, and omics work; browse project versions and run history.
 - **Build visual workflows:** add, remove, connect, and reuse nodes; start with research presets or write custom tasks; inspect configuration checks and output summaries.
 - **Plan through chat:** refine requirements, compare workflow drafts, select models, attach local files, and include project context or run errors. Conversations support history, archiving, cancellation, and background generation while the assistant is closed.
-- **Use research tools:** search PubMed metadata; read DOCX, text-based PDFs, and text files; run Python/R scripts; check required fields; and invoke stdio MCP tools.
+- **Use research tools:** retrieve PubMed metadata and structured abstracts; read DOCX, text-based PDFs, text, and CSV/XLSX tables; configure clinical statistics with real column selectors; run Python/R scripts; check required fields; and invoke stdio MCP tools.
 - **Configure your research agent:** set global or project-specific rules, Skills, and default models; link local Codex Skills and MCP configuration through symlinks.
 - **Review and deliver:** compare revisions in a structured approval view, preview and download artifacts, export Word/PDF/text documents, package results as ZIP, and freeze reviewed outputs with a manifest.
 
@@ -47,6 +47,7 @@ For the core application:
 Add dependencies for the nodes you plan to use:
 
 - **Python:** an interpreter and the packages used by your scripts. The bundled analysis example uses `pandas`.
+- **Clinical tables and statistics:** install [the clinical dependencies](backend/src/main/resources/scinode/requirements-clinical.txt) in the interpreter selected by `SCINODE_PYTHON`. Table input is limited to 200,000 rows and 500 columns.
 - **Documents:** a Python interpreter with `python-docx` for Word, `pypdf` for PDF reading, and `reportlab` for PDF export. Scanned PDFs need OCR before text extraction.
 - **R:** `Rscript` and the packages used by your analysis; the bundled example uses `jsonlite`.
 - **PostgreSQL:** your own databases, read-only credentials, and [the PostgreSQL Python dependencies](scripts/requirements-postgres.txt).
@@ -165,7 +166,7 @@ The light workspace uses high-contrast text, a shared system font stack, and tea
 
 On wider screens, the assistant separates conversation history, chat, and the editable draft into three panels. Model endpoint, actual model, and reasoning level have explicit labels. Collapse either side panel for more reading space; narrow screens use closable overlays. The workflow editor also provides node-library, canvas, and inspector tabs on narrow screens.
 
-Node output and messages render Markdown as readable documents. Draft review uses a larger side-by-side comparison; human review supports full-screen continuous reading and keyboard scrolling. Shared colors and typography live in [frontend/src/theme.ts](frontend/src/theme.ts). Run `node --test src/research/*.test.mjs` from `frontend/` for regressions, including palette contrast and structured node summaries.
+Node output and messages render Markdown as readable documents. Draft review uses a larger side-by-side comparison; human review separates documents, result files, checklists, and decisions, with full-screen reading and keyboard scrolling. Completed runs restore their recorded checklist; a new approval starts unchecked. The canvas minimap is optional and closed by default. Shared colors and typography live in [frontend/src/theme.ts](frontend/src/theme.ts). Run `node --test src/research/*.test.mjs` from `frontend/` for regressions, including palette contrast and structured node summaries.
 
 ## Example: request-driven PostgreSQL extraction
 
@@ -230,3 +231,17 @@ The repository tracks source, tests, dependency lists and lockfiles, configurati
 Back up **MySQL, the research data directory, and any external project workspaces** together. Keep original inputs, human decisions, historical runs, and frozen artifacts; use a new run for further work.
 
 For upstream attribution, see [Third-party notices](THIRD_PARTY_NOTICES.md).
+
+
+## Clinical workflows and reproducible tasks
+
+Four clinical project templates now cover retrospective cohorts, binary prediction models, systematic-review extraction, and protocol/ethics drafts. Local CSV/XLSX previews provide real column selectors. Built-in Python tasks produce data-quality summaries, Table 1, Logistic/Cox regression, Kaplan–Meier curves, and internal prediction validation. PubMed retrieves structured abstracts with EFetch.
+
+New runs organize each task into `config/`, `src/`, `logs/`, and `output/`. ZIP exports include original inputs, actual code, environment records, review decisions, file hashes, and `reproduce.py`. Read the extracted package's README, then run one local task into an empty output directory. Historical and frozen artifacts retain their existing paths. See the [Chinese guide](SciNode使用指南.md#任务文件与复现) for the complete workflow and validation scope.
+
+
+## Browser acceptance
+
+Browser acceptance is complete for the local clinical workflow. An 80-row synthetic project verified CSV/XLSX worksheet selection and previews, Table 1, approval gating, recorded checklist restoration, full-screen review, grouped downloads, and the 375px layout. Six clinical task presets, source selection, and PubMed query-building controls were checked without model generation or a live search. Two successful runs include a rerun that reused three upstream tasks and required a fresh approval; the downloaded ZIP correctly identifies its producing task.
+
+The current frontend build, targeted lint, 44 frontend tests, and eight Python clinical/package tests passed. The focused Java run passed four tests and skipped its opt-in live PubMed test. Earlier backend and live-search results remain recorded separately. The local UI evidence is in `artifacts/ui-acceptance/acceptance.json`; the frontend and backend are serving the updated build.

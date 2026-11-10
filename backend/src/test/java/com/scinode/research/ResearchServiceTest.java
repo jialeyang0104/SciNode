@@ -44,7 +44,8 @@ class ResearchServiceTest {
         assertNull(r.getJSONObject("nodeResults").getJSONObject("report"));String waitingId=r.getString("id");assertThrows(IllegalArgumentException.class,()->service.freeze("admin",waitingId));
         String rid=r.getString("id");service.proceed("admin",rid,new JSONObject(Map.of("approved",true,"note","confirmed scope")));r=waitFor(rid,"SUCCESS");
         assertEquals(1,r.getJSONArray("decisions").size());r=service.freeze("admin",rid);assertTrue(r.getBooleanValue("frozen"));
-        Path artifact=service.artifact("admin",rid,0);assertEquals("original",Files.readString(artifact));Files.writeString(artifact,"tampered");assertThrows(IllegalArgumentException.class,()->service.artifact("admin",rid,0));
+        int foundIndex=-1;for(int i=0;i<r.getJSONArray("artifacts").size();i++)if("report.md".equals(r.getJSONArray("artifacts").getJSONObject(i).getString("name")))foundIndex=i;assertTrue(foundIndex>=0);final int reportIndex=foundIndex;
+        Path artifact=service.artifact("admin",rid,reportIndex);assertEquals("original",Files.readString(artifact));Files.writeString(artifact,"tampered");assertThrows(IllegalArgumentException.class,()->service.artifact("admin",rid,reportIndex));
     }
     private String rId(JSONObject r){return r.getString("id");}
     @Test void rerunCreatesChildAndReusesOnlyUnchangedUpstream()throws Exception{
@@ -101,4 +102,20 @@ class ResearchServiceTest {
     @Test void scriptFailureIsPersistedAndDownstreamWaits()throws Exception{
         JSONObject p=project(false);doThrow(new IllegalStateException("exit code 7")).when(tools).execute(any(),any());JSONObject r=start(p);r=waitFor(r.getString("id"),"FAILED");assertTrue(r.getString("error").contains("exit code 7"));assertNull(r.getJSONObject("nodeResults").getJSONObject("report"));
     }
+    @Test void clinicalChecklistIsEnforcedAndStoredWithTaskFiles()throws Exception{
+        JSONObject p=project(true);
+        p.getJSONArray("nodes").getJSONObject(1).getJSONObject("data").put("reviewChecklist",List.of("确认结局","核对缺失"));
+        p=service.save("admin",p.getString("id"),p);
+        JSONObject r=start(p);String rid=r.getString("id");waitFor(rid,"WAITING_APPROVAL");
+        assertThrows(IllegalArgumentException.class,()->service.proceed("admin",rid,new JSONObject(Map.of("approved",true,"note","ok"))));
+        service.proceed("admin",rid,new JSONObject(Map.of("approved",true,"note","ok","checkedItems",List.of("确认结局","核对缺失"))));
+        r=waitFor(rid,"SUCCESS");assertEquals(2,r.getJSONArray("decisions").getJSONObject(0).getJSONArray("checkedItems").size());
+        assertTrue(Files.isRegularFile(Path.of(r.getString("runDir"),"tasks/confirm/config/decision.json")));
+        assertTrue(Files.isRegularFile(Path.of(r.getString("runDir"),"README.md")));
+        for(Object artifact:r.getJSONArray("artifacts"))assertTrue(((JSONObject)artifact).getString("relativePath").startsWith("tasks/"));
+    }
+    @Test void clinicalTemplatesValidateAllReferences(){
+        for(String template:ClinicalTemplates.IDS)assertDoesNotThrow(()->service.validateGraph(ResearchTemplates.flow(template)));
+    }
+
 }
